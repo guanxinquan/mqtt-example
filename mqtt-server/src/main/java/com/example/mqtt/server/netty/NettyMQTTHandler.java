@@ -6,6 +6,8 @@ import static com.example.mqtt.proto.messages.AbstractMessage.*;
 import com.example.mqtt.proto.messages.AbstractMessage;
 import com.example.mqtt.proto.messages.PingRespMessage;
 import com.example.mqtt.server.Constants;
+import com.example.mqtt.spi.IMessageFactory;
+import com.example.mqtt.spi.IMessaging;
 import com.example.mqtt.spi.impl.SimpleMessageImpl;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerAdapter;
@@ -27,7 +29,7 @@ public class NettyMQTTHandler extends ChannelHandlerAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(NettyMQTTHandler.class);
     private final Map<ChannelHandlerContext, NettyChannel> channelMapper = new ConcurrentHashMap<ChannelHandlerContext, NettyChannel>();
 
-    private SimpleMessageImpl simpleMessage = new SimpleMessageImpl();
+    private IMessaging messaging = IMessageFactory.getInstance();
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object message) throws Exception {
@@ -49,7 +51,7 @@ public class NettyMQTTHandler extends ChannelHandlerAdapter {
                     }
                     NettyChannel channel = channelMapper.get(ctx);
 
-                    simpleMessage.handleProtocolMessage(channel,msg);
+                    messaging.handleProtocolMessage(channel,msg);
 
                     break;
                 case PINGREQ:
@@ -72,7 +74,7 @@ public class NettyMQTTHandler extends ChannelHandlerAdapter {
         NettyChannel channel = channelMapper.get(ctx);
         String clientID = (String) channel.getAttribute(Constants.ATTR_CLIENTID);
         ctx.close();
-        simpleMessage.lostConnection(clientID);
+        messaging.lostConnection(clientID);
         channelMapper.remove(ctx);
 
     }

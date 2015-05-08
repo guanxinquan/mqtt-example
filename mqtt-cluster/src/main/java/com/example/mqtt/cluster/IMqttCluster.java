@@ -1,43 +1,32 @@
 package com.example.mqtt.cluster;
 
-
-import java.util.List;
+import com.example.mqtt.api.MqttListener;
+import com.example.mqtt.api.MqttServer;
 
 /**
- *
- * mqttCluster 用于将mqtt服务部署为集群服务。mqtt集群服务包括客户端链接一致性hash，mqtt服务调用远程处理服务，远程处理服务调用mqtt服务
- *
- * Created by guanxinquan on 15-5-7.
+ * Created by guanxinquan on 15-5-8.
+ * 维护mqtt远程调用的集群
  */
 public interface IMqttCluster {
 
     /**
-     * 注册mqtt服务到zk上
-     * @param host
-     * @param port
-     * @param seq
-     */
-    public void registerMqttServer(String host,Integer port,Integer seq);
-
-    /**
-     * 获取mqtt服务器列表，服务器列表按照seq排序
+     * 获取mqtt服务器的rpc服务，按照一致性hash算法计算服务器
+     * @param userId
      * @return
      */
-    public List<ZkNode> fetchMqttServers();
-
-
-    /**
-     * 注册mqtt服务器的客户端，即远程服务端
-     * @param host
-     * @param port
-     */
-    public void registerRpcClient(String host,Integer port);
+    public MqttServer getMqttServer(Long userId);
 
     /**
-     * 获取mqtt的远程服务端。
+     * 获取mqtt服务器的地址，按照一致性hash算法计算服务器地址
+     * @param userId
      * @return
      */
-    public List<ZkNode> fetchRpcClient();
+    public String getMqttServerUrl(Long userId);
 
+    /**
+     * 随机获取一个远端服务器
+     * @return
+     */
+    public MqttListener getMqttListener();
 
 }

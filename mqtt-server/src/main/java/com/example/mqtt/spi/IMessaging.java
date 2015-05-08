@@ -19,6 +19,15 @@ public interface IMessaging {
      */
     void handleProtocolMessage(ServerChannel session, AbstractMessage msg);
 
+
+    /**
+     * 从网络下发消息
+     * @param clientId 客户id
+     * @param content 内容
+     * @param topic 主题
+     */
+    public void sendMessage(String clientId,String content,String topic);
+
     /**
      *
      * 当客户端与服务端断开链接时，调用这个接口，用于清理系统内部维护的mqtt相关的信息
@@ -26,6 +35,5 @@ public interface IMessaging {
      * @param clientID 客户id
      */
     void lostConnection(String clientID);
-
 
 }

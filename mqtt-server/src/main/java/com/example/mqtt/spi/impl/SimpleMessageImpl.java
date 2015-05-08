@@ -137,7 +137,7 @@ public class SimpleMessageImpl implements IMessaging {
 
     }
 
-    private void sendMessage(String clientId,String content,String topic){
+    public void sendMessage(String clientId,String content,String topic){
         ConnectionDescriptor descriptor = clientIDs.get(clientId);
         PublishMessage publishMessage = new PublishMessage();
         publishMessage.setPayload(ByteBuffer.wrap(content.getBytes()));
