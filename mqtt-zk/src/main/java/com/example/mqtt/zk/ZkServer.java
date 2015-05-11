@@ -14,11 +14,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by guanxinquan on 15-5-7.
+ *
+ * 基于zk的注册系统
+ *
  */
 public class ZkServer implements IZkServer{
 
@@ -32,21 +37,17 @@ public class ZkServer implements IZkServer{
 
     private static final String SERVER_PATH = "/server";
 
-    private static final String CLIENT_PATH = "/client";
-
     private static final Logger logger = LoggerFactory.getLogger(ZkServer.class);
 
     private CuratorFramework framework;
 
     private String hosts;
 
-    private PathChildrenCache serverCache;
+    private PathChildrenCache serverPath;
 
-    private PathChildrenCache clientCache;
+    private Map<String,PathChildrenCache> apiPaths = new ConcurrentHashMap<String, PathChildrenCache>();
 
-    private AtomicInteger serverDataVersion = new AtomicInteger();
-
-    private AtomicInteger clientDataVersion = new AtomicInteger();
+    private static final Integer lock = new Integer(1);
 
 
     public ZkServer(String hosts) {
@@ -64,75 +65,74 @@ public class ZkServer implements IZkServer{
                 build();
         framework.start();
 
-        serverCache = new PathChildrenCache(framework,SERVER_PATH,true);
-        clientCache = new PathChildrenCache(framework,CLIENT_PATH,true);
-
-        serverCache.getListenable().addListener(new ServerChangeListener());
-        clientCache.getListenable().addListener(new ClientChangeListener());
-
+        serverPath = new PathChildrenCache(framework,SERVER_PATH,true);
         try {
-            serverCache.start();
-            clientCache.start();
+            serverPath.getListenable().addListener(new ServerChangeListener());
+            serverPath.start();
         } catch (Exception e) {
             e.printStackTrace();
         }
-
     }
 
-    public List<ChildData> fetchServerPath(){
-        return serverCache.getCurrentData();
-    }
-
-    @Override
-    public AtomicInteger getServerDateVersion() {
-        return serverDataVersion;
-    }
-
-    @Override
-    public AtomicInteger getClientDateVersion() {
-        return clientDataVersion;
-    }
-
-    @Override
-    public void registerServerPath(String path, byte[] data) {
-
-        path = SERVER_PATH + "/" + path;
-        registerPath(path,data);
-    }
-
-    @Override
-    public void registerClientPath(String path, byte[] data) {
-        path = CLIENT_PATH + "/" + path;
-        registerPath(path,data);
-    }
-
-    private void registerPath(String path,byte[] data){
-        CreateMode mode = CreateMode.EPHEMERAL;
-        try {
+    public List<ChildData> fetchApiProvider(String apiName) throws Exception {
+        PathChildrenCache cache = apiPaths.get(apiName);
+        if(cache == null)
+        {
+            String path = SERVER_PATH+ "/" + apiName;
             Stat stat = framework.checkExists().forPath(path);
             if(stat == null){
-                framework.create().
-                        creatingParentsIfNeeded().
-                        withMode(mode).
-                        withACL(ZooDefs.Ids.OPEN_ACL_UNSAFE).
-                        forPath(path);
-                framework.setData().forPath(path,data);
+                return Collections.EMPTY_LIST;
+            }else{
+                synchronized (lock){
+                    if (!apiPaths.containsKey(apiName)) {
+                        PathChildrenCache apiCache = new PathChildrenCache(framework, path, true);
+                        apiCache.start(PathChildrenCache.StartMode.BUILD_INITIAL_CACHE);
+                        apiPaths.put(apiName, apiCache);
+                    }
+                }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
+        if(cache == null)
+            cache = apiPaths.get(apiName);
+        return cache.getCurrentData();
     }
 
+    public void registerApiProvider(String api,String host,Integer port,byte[] data) throws Exception {
+        String className = api;
+        String url = String.format("rmi://%s:%d/%s",host,port,className).replace('/','_');
+        String path = SERVER_PATH+"/"+className;
+        Stat stat = framework.checkExists().forPath(path);
+        if(stat == null){
+            createNode(path,CreateMode.PERSISTENT);
+        }
+        String subPath = path + "/"+url;
+        stat = framework.checkExists().forPath(subPath);
+        if(stat == null){
+            createNode(subPath,CreateMode.EPHEMERAL);
+            if(data != null){
+                framework.setData().forPath(subPath,data);
+            }
+        }
 
-    public List<ChildData> fetchClientPath(){
-        return clientCache.getCurrentData();
+    }
+
+    private void createNode(String path,CreateMode mode) throws Exception {
+        framework.
+                create().
+                creatingParentsIfNeeded().
+                withMode(mode).
+                withACL(ZooDefs.Ids.OPEN_ACL_UNSAFE).
+                forPath(path);
     }
 
     @Override
     public void close() throws IOException {
         try {
-            serverCache.close();
-            clientCache.close();
+            serverPath.close();
+            for (Map.Entry<String,PathChildrenCache> e : apiPaths.entrySet()){
+                if(e.getValue() != null)
+                    e.getValue().close();
+            }
         }catch (Exception e){
 
         }finally {
@@ -141,22 +141,21 @@ public class ZkServer implements IZkServer{
 
     }
 
-    class ClientChangeListener implements PathChildrenCacheListener {
-
-        @Override
-        public void childEvent(CuratorFramework curatorFramework, PathChildrenCacheEvent pathChildrenCacheEvent) throws Exception {
-            logger.info("client children path change {}",pathChildrenCacheEvent.getData().getPath());
-            clientDataVersion.incrementAndGet();
-        }
-    }
-
     class ServerChangeListener implements PathChildrenCacheListener{
 
         @Override
         public void childEvent(CuratorFramework curatorFramework, PathChildrenCacheEvent pathChildrenCacheEvent) throws Exception {
-            logger.info("server children path change {}",pathChildrenCacheEvent.getData().getPath());
-            serverDataVersion.incrementAndGet();
+            String path = pathChildrenCacheEvent.getData().getPath();
+            String api = path.split("/")[1];
+            synchronized (lock) {
+                if (!apiPaths.containsKey(api)) {
+                    PathChildrenCache apiCache = new PathChildrenCache(curatorFramework, SERVER_PATH + "/" + api, true);
+                    apiPaths.put(api, apiCache);
+                }
+
+            }
         }
     }
+
 
 }

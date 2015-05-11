@@ -1,26 +1,17 @@
 package com.example.mqtt.api;
 
-import com.example.mqtt.model.PublishModel;
+
+
+import com.example.mqtt.event.mqtt.MqttEvent;
+
+import java.rmi.Remote;
+import java.rmi.RemoteException;
 
 /**
- * Created by guanxinquan on 15-5-7.
- *
- *
- *
+ * Created by guanxinquan on 15-5-11.
+ * 调用mqtt服务执行的事件
  */
-public interface IMqttService {
+public interface IMqttService extends Remote{
 
-
-    /**
-     * 踢出指定clientID的客户端链接
-     * @param clientID
-     * @return
-     */
-    public boolean kickOut(String clientID);
-
-    /**
-     * 下发消息
-     * @param message 消息信息
-     */
-    public void publish(PublishModel message);
+    public Object sendEvent(MqttEvent event) throws RemoteException;
 }

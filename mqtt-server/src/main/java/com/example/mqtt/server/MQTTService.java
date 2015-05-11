@@ -1,5 +1,6 @@
 package com.example.mqtt.server;
 
+import com.example.mqtt.rpc.RpcServiceRegister;
 import com.example.mqtt.server.netty.NettyAcceptor;
 
 import java.io.IOException;
@@ -20,6 +21,7 @@ public class MQTTService  {
         Properties properties = new Properties();
         properties.put("port",1883);
 
+        RpcServiceRegister.register();
 
         acceptor.initialize(null, properties);
         Runtime.getRuntime().addShutdownHook(new Thread(){
@@ -30,6 +32,7 @@ public class MQTTService  {
                 System.out.println("Server stopped");
             }
         });
+
     }
 
 }

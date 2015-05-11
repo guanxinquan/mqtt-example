@@ -7,11 +7,12 @@ import java.util.List;
 /**
  * Created by guanxinquan on 15-5-11.
  */
-public class ZkServerTest {
+public class ZkServerTest2 {
+
     public static final void main(String[] args) throws Exception {
         System.setProperty("zk","localhost:2181");
         IZkServer zkServer = ZkServerFactory.getInstance();
-        zkServer.registerApiProvider(IZkServer.class.getTypeName(),"localhost",1099,null);
+        zkServer.registerApiProvider(IZkServer.class.getTypeName(),"localhost",1088,null);
 
         try {
             while (true) {
@@ -26,4 +27,5 @@ public class ZkServerTest {
             zkServer.close();
         }
     }
+
 }

@@ -5,22 +5,28 @@ import org.apache.curator.framework.recipes.cache.ChildData;
 import java.io.Closeable;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by guanxinquan on 15-5-8.
  */
 public interface IZkServer extends Closeable{
 
-    public List<ChildData> fetchServerPath();
+    /**
+     * 将服务注册到zk上
+     * @param api 注册服务的类型
+     * @param host 注册服务的主机
+     * @param port 注册服务的端口
+     * @param data 注册服务时需要的附加数据
+     * @throws Exception
+     */
+    public void registerApiProvider(String api,String host,Integer port,byte[] data) throws Exception;
 
-    public AtomicInteger getServerDateVersion();
 
-    public AtomicInteger getClientDateVersion();
-
-    public void registerServerPath(String path,byte[] data);
-
-    public void registerClientPath(String path,byte[] data);
-
-
+    /**
+     * 获取服务
+     * @param apiName 服务的类名字
+     * @return
+     * @throws Exception
+     */
+    public List<ChildData> fetchApiProvider(String apiName) throws Exception;
 }

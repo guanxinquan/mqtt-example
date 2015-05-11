@@ -8,6 +8,8 @@ import java.io.IOException;
 public class MQTTServerTest {
 
     public static void main(String[] args) throws IOException, InterruptedException {
+        System.setProperty("zk","localhost:2181");
+
         MQTTService service = new MQTTService();
         service.startServer();
         Thread.sleep(10000000000l);
