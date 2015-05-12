@@ -20,6 +20,13 @@ public class RmiLookupServiceImpl implements LookupService {
 
     private IZkServer zkServer = ZkServerFactory.getInstance();
 
+    /**
+     * 随机获取一个远程调用服务
+     * @param clazz
+     * @param <T>
+     * @return
+     * @throws Exception
+     */
     @Override
     public <T> T lookup(Class<T> clazz) throws Exception {
         T service = null;
@@ -28,8 +35,11 @@ public class RmiLookupServiceImpl implements LookupService {
         String url = null;
         if(size == 1){
             url = generatorUrl(childData.get(0).getPath());
-        }else{
+        }else if(size > 1){
             url = generatorUrl(childData.get(ThreadLocalRandom.current().nextInt(size)).getPath());
+        }else{
+            logger.error("no provider of service {} exist ,please check out service ",clazz.getTypeName(),new Exception());
+            return service;
         }
         logger.debug("use remote url {}",url);
         if(url != null){

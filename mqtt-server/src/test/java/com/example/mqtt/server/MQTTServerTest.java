@@ -12,7 +12,6 @@ public class MQTTServerTest {
 
         MQTTService service = new MQTTService();
         service.startServer();
-        Thread.sleep(10000000000l);
     }
 
 }

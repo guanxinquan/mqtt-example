@@ -59,7 +59,6 @@ public class NettyMQTTHandler extends ChannelHandlerAdapter {
                     String clientId = (String) channel.getAttribute(Constants.ATTR_CLIENTID);
                     PingRespMessage pingResp = new PingRespMessage();
                     ctx.writeAndFlush(pingResp);
-                   // messaging.handlePing(clientId);
                     break;
             }
         } catch (Exception ex) {

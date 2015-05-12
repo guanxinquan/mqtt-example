@@ -8,6 +8,16 @@ public class LoginEvent extends ListenerEvent {
 
     private String password;
 
+    public LoginEvent(Long userId,String clientId,String password) {
+        this.password = password;
+        setUserID(userId);
+        setClientID(clientId);
+    }
+
+    public LoginEvent(){
+
+    }
+
     public String getPassword() {
         return password;
     }

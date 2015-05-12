@@ -3,7 +3,7 @@ package com.example.mqtt.cluster;
 
 /**
  * Created by guanxinquan on 15-5-8.
- * 维护mqtt远程调用的集群
+ * 用于获取远程调用的服务
  */
 public interface LookupService {
 

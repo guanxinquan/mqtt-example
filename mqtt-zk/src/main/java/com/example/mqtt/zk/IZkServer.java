@@ -8,11 +8,13 @@ import java.util.List;
 
 /**
  * Created by guanxinquan on 15-5-8.
+ *
+ * zk服务器
  */
 public interface IZkServer extends Closeable{
 
     /**
-     * 将服务注册到zk上
+     * 将服务注册到zk上，主要用于rpc服务端的注册
      * @param api 注册服务的类型
      * @param host 注册服务的主机
      * @param port 注册服务的端口
@@ -23,9 +25,9 @@ public interface IZkServer extends Closeable{
 
 
     /**
-     * 获取服务
+     * 获取rpc服务的配置
      * @param apiName 服务的类名字
-     * @return
+     * @return 配置列表
      * @throws Exception
      */
     public List<ChildData> fetchApiProvider(String apiName) throws Exception;

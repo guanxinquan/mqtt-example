@@ -3,10 +3,10 @@ package com.example.mqtt.listener;
 import com.example.mqtt.api.IMqttRemoteListener;
 import com.example.mqtt.zk.IZkServer;
 import com.example.mqtt.zk.ZkServerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.net.MalformedURLException;
 import java.rmi.Naming;
-import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 
 /**
@@ -17,19 +17,26 @@ public class RemoteMqttListenerFactory {
     private static IMqttRemoteListener listener ;
     private static IZkServer zkServer = ZkServerFactory.getInstance();
 
+    private static final Logger logger = LoggerFactory.getLogger(RemoteMqttListenerFactory.class);
+
+
     static {
-        String url = String.format("rmi://localhost:%d/%s",1099,IMqttRemoteListener.class.getTypeName());
+        String host = System.getProperty("rmiHost");
+        String port = System.getProperty("rmiPort");
+        if(host == null)
+            host = "localhost";
+        if(port == null){
+            port = "1099";
+        }
+        String url = String.format("rmi://%s:%d/%s",host,Integer.valueOf(port),IMqttRemoteListener.class.getTypeName());
+        logger.info("register rmi service :{}",url);
         try {
             listener = new RemoteMqttListener();
-            LocateRegistry.createRegistry(1099);
+            LocateRegistry.createRegistry(Integer.valueOf(port));
             Naming.rebind(url,listener);
-            zkServer.registerApiProvider(IMqttRemoteListener.class.getTypeName(),"localhost",1099,null);
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (Exception e) {
-            e.printStackTrace();
+            zkServer.registerApiProvider(IMqttRemoteListener.class.getTypeName(),host,Integer.valueOf(port),null);
+        } catch (Exception e){
+            logger.error("create remote mqtt listener error ",e);
         }
     }
 

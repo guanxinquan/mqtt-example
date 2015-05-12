@@ -7,26 +7,54 @@ import java.io.IOException;
 
 /**
  * Created by guanxinquan on 15-5-8.
+ *
+ * zk服务的工厂类
+ *
+ *
  */
 public class ZkServerFactory {
 
     private static final String hosts = System.getProperty("zk");
 
-    private static ZkServer instance = new ZkServer(hosts);
+    private static final Logger logger = LoggerFactory.getLogger(ZkServerFactory.class);
+
+    private static ZkServer instance ;
 
     static {
-        Runtime.getRuntime().addShutdownHook(new Shutdown());
+        try {
+            instance = new ZkServer(hosts);
+            Runtime.getRuntime().addShutdownHook(new Shutdown());
+        }catch (Exception e){
+            logger.info("system properties -Dzk should not null or empty");
+            System.exit(1);
+        }
     }
 
+    /**
+     * 获取zk实例
+     * @return
+     */
     public static final ZkServer getInstance(){
         return instance;
     }
 
+    /**
+     * 将zk实例设置为空
+     */
+    static final void cleanInstance(){
+        instance = null;
+    }
+
 }
+
 
 class Shutdown extends Thread{
 
     private static final Logger logger = LoggerFactory.getLogger(ZkServerFactory.class);
+
+    /**
+     * 清理关闭zk服务
+     */
     @Override
     public void run() {
         ZkServer instance = ZkServerFactory.getInstance();
@@ -38,5 +66,6 @@ class Shutdown extends Thread{
                 logger.error("close zk service error ",e);
             }
         }
+        ZkServerFactory.cleanInstance();
     }
 }

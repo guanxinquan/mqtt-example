@@ -1,5 +1,6 @@
 package com.example.mqtt.spi;
 
+import com.example.mqtt.jmx.MqttStatusMBean;
 import com.example.mqtt.proto.messages.AbstractMessage;
 import com.example.mqtt.server.ServerChannel;
 
@@ -10,7 +11,7 @@ import com.example.mqtt.server.ServerChannel;
  *
  *
  */
-public interface IMessaging {
+public interface IMessaging extends MqttStatusMBean {
 
     /**
      * 处理协议消息
@@ -26,7 +27,15 @@ public interface IMessaging {
      * @param content 内容
      * @param topic 主题
      */
-    public void sendMessage(String clientId,String content,String topic);
+    public void sendMessage(String clientId,byte[] content,String topic);
+
+    /**
+     * 通过用户名字或者id下发消息
+     * @param userId 用户id
+     * @param content 消息内容
+     * @param topic 主题
+     */
+    public void sendMessageByUser(String userId,byte[] content,String topic);
 
     /**
      *

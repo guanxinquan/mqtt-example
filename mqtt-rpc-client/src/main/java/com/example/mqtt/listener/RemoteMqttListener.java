@@ -27,13 +27,18 @@ public class RemoteMqttListener extends UnicastRemoteObject implements IMqttRemo
     @Override
     public Object eventArrival(ListenerEvent event) throws RemoteException {
 
-        logger.info("listener event {} {}",event.getClientID(),event.getUserID());
+        logger.debug("listener event {} {}", event.getClientID(), event.getUserID());
 
-        for (IMqttListener listener : listeners){
-            listener.eventArrival(event);
+        Object object = null;
+        for (IMqttListener listener : listeners){//一直遍历，知道有某一个返回值为飞空的listener。
+            object = listener.eventArrival(event);
+            if(object != null){
+                break;
+            }
         }
 
-        return new Boolean(true);
+
+        return object;
     }
 
 

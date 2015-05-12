@@ -1,5 +1,6 @@
 package com.example.mqtt.server.netty;
 
+import com.example.mqtt.jmx.MqttStatus;
 import com.example.mqtt.spi.IMessaging;
 import com.example.mqtt.parser.decoder.MQTTDecoder;
 import com.example.mqtt.parser.encoder.MQTTEncoder;
@@ -13,7 +14,10 @@ import io.netty.handler.timeout.IdleStateHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.util.Properties;
 
 /**
@@ -58,11 +62,25 @@ public class NettyAcceptor implements ServerAcceptor {
                 .childOption(ChannelOption.SO_KEEPALIVE, true);
         try {
             // Bind and start to accept incoming connections.
+
+            //注册jxm bean
+            try {
+                MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+                ObjectName mbeanName = new ObjectName("com.example.mqtt.jmx:type=MqttStatusMBean");
+                MqttStatus mbean = new MqttStatus();
+                server.registerMBean(mbean,mbeanName);
+            }catch (Exception e){
+                logger.error("register jmx bean error ",e);
+            }
+
+            Runtime.getRuntime().addShutdownHook(new Shutdown(this));
+
             ChannelFuture f = b.bind(host, port);
             logger.info("Server binded host: {}, port: {}", host, port);
             f.sync();
         } catch (InterruptedException ex) {
             logger.error(null, ex);
+            System.exit(1);
         }
     }
 
@@ -80,13 +98,31 @@ public class NettyAcceptor implements ServerAcceptor {
 
     @Override
     public void close() {
+
+        logger.info("netty service shut down");
+
         if(workerGroup != null){
             workerGroup.shutdownGracefully();
+            workerGroup = null;
         }
         if(bossGroup != null){
             bossGroup.shutdownGracefully();
+            bossGroup = null;
         }
 
 
+    }
+}
+
+class Shutdown extends Thread{
+    private NettyAcceptor acceptor;
+
+    Shutdown(NettyAcceptor acceptor){
+        this.acceptor = acceptor;
+    }
+
+    @Override
+    public void run() {
+        acceptor.close();
     }
 }

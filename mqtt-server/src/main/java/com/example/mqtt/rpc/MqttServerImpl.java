@@ -32,7 +32,11 @@ public class MqttServerImpl extends UnicastRemoteObject implements IMqttService 
         if(event instanceof PublishEvent){
             PublishEvent e  = (PublishEvent) event;
             logger.info("mqtt service receive rpc publish event {} {}",event.getUserID(),event.getClientID());
-            //messaging.sendMessage(e.getClientID(),e.);
+            if(e.getClientID() == null ||"".equals(e.getClientID())){//send message by userId
+                messaging.sendMessageByUser(String.valueOf(e.getUserID()),e.getPayLoad(),e.getTopic());
+            }else{//send message by clientId
+                messaging.sendMessage(e.getClientID(),e.getPayLoad(),e.getTopic());
+            }
         }
         return null;
     }

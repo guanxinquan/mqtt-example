@@ -65,12 +65,13 @@ public class ZkServer implements IZkServer{
                 build();
         framework.start();
 
+        //监控服务上层目录变化
         serverPath = new PathChildrenCache(framework,SERVER_PATH,true);
         try {
             serverPath.getListenable().addListener(new ServerChangeListener());
             serverPath.start();
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("server path listener error ",e);
         }
     }
 
@@ -86,7 +87,7 @@ public class ZkServer implements IZkServer{
                 synchronized (lock){
                     if (!apiPaths.containsKey(apiName)) {
                         PathChildrenCache apiCache = new PathChildrenCache(framework, path, true);
-                        apiCache.start(PathChildrenCache.StartMode.BUILD_INITIAL_CACHE);
+                        apiCache.start(PathChildrenCache.StartMode.BUILD_INITIAL_CACHE);//在启动时，加载路径
                         apiPaths.put(apiName, apiCache);
                     }
                 }
@@ -103,7 +104,7 @@ public class ZkServer implements IZkServer{
         String path = SERVER_PATH+"/"+className;
         Stat stat = framework.checkExists().forPath(path);
         if(stat == null){
-            createNode(path,CreateMode.PERSISTENT);
+            createNode(path,CreateMode.PERSISTENT);//将className注册成持久节点
         }
         String subPath = path + "/"+url;
         stat = framework.checkExists().forPath(subPath);

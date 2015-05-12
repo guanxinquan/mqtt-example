@@ -10,6 +10,15 @@ public class PublishEvent extends ListenerEvent {
 
     private String topic;
 
+    public PublishEvent() {
+    }
+
+    public PublishEvent(String clientId,Long userId,byte[] payLoad, String topic) {
+        setClientID(clientId);
+        setUserID(userId);
+        this.payLoad = payLoad;
+        this.topic = topic;
+    }
 
     public byte[] getPayLoad() {
         return payLoad;

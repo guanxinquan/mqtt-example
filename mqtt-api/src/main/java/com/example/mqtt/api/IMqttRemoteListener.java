@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * Created by guanxinquan on 15-5-11.
  *
- * mqtt事件监听器
+ * 远程监听，用于客户端实现监听rpc服务
  *
  */
 public interface IMqttRemoteListener extends Remote{
