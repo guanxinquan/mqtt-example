@@ -35,6 +35,11 @@ public class GuavaPubStubStore implements PubStubStore {
     }
 
     @Override
+    public long getSize() {
+        return cache.size();
+    }
+
+    @Override
     public void close() throws IOException {
         cache.invalidateAll();
         cache.cleanUp();

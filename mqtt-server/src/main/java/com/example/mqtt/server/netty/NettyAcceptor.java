@@ -1,10 +1,14 @@
 package com.example.mqtt.server.netty;
 
 import com.example.mqtt.jmx.MqttStatus;
+import com.example.mqtt.register.MqttRegister;
+import com.example.mqtt.rpc.RpcServiceRegister;
 import com.example.mqtt.spi.IMessaging;
 import com.example.mqtt.parser.decoder.MQTTDecoder;
 import com.example.mqtt.parser.encoder.MQTTEncoder;
 import com.example.mqtt.server.ServerAcceptor;
+import com.example.mqtt.zk.IZkServer;
+import com.example.mqtt.zk.ZkServerFactory;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -18,6 +22,7 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.nio.charset.Charset;
 import java.util.Properties;
 
 /**
@@ -34,6 +39,8 @@ public class NettyAcceptor implements ServerAcceptor {
     EventLoopGroup bossGroup;
 
     EventLoopGroup workerGroup;
+
+    private IZkServer zkServer = ZkServerFactory.getInstance();
 
     @Override
     public void initialize(IMessaging messaging, Properties props) throws IOException {
@@ -71,6 +78,17 @@ public class NettyAcceptor implements ServerAcceptor {
                 server.registerMBean(mbean,mbeanName);
             }catch (Exception e){
                 logger.error("register jmx bean error ",e);
+            }
+
+            /**
+             * 注册mqtt服务
+             */
+            try {
+                String registerInfo = host+":"+port+":"+RpcServiceRegister.port;
+                zkServer.registerServer(registerInfo,null);
+            } catch (Exception e) {
+                logger.error("register to mqtt service error ",e);
+                System.exit(1);
             }
 
             Runtime.getRuntime().addShutdownHook(new Shutdown(this));

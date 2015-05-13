@@ -29,4 +29,22 @@ public class MqttStatus implements MqttStatusMBean {
     public int getConnectCntByUserId(String userId) {
         return messaging.getConnectCntByUserId(userId);
     }
+
+    /**
+     * 获取上行消息存放的stub数量
+     * @return
+     */
+    @Override
+    public long getPubStubCnt() {
+        return messaging.getPubStubCnt();
+    }
+
+    /**
+     * 获取下行的flight消息数量
+     * @return
+     */
+    @Override
+    public long getQosFlightCnt() {
+        return messaging.getQosFlightCnt();
+    }
 }

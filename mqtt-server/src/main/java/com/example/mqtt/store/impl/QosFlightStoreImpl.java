@@ -67,6 +67,11 @@ public class QosFlightStoreImpl implements QosFlightStore {
         }
     }
 
+    @Override
+    public long getSize() {
+        return eventCache.size();
+    }
+
     private String getCacheKey(String clientID,String messageID){
         return clientID + ":"+messageID;
     }

@@ -11,4 +11,6 @@ public interface QosFlightStore extends Closeable{
 
     public void removeFlight(String clientID,String messageID);
 
+    public long getSize();
+
 }

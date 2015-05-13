@@ -16,11 +16,12 @@ public class RpcServiceRegister {
 
     private static final IZkServer zkServer = ZkServerFactory.getInstance();
     private static final Logger logger = LoggerFactory.getLogger(RpcServiceRegister.class);
+    public static String port = "1088";
 
     static {
 
         String host = System.getProperty("rmiHost");
-        String port = System.getProperty("rmiPort");
+
 
         if(host == null)
             host= "localhost";
@@ -28,14 +29,14 @@ public class RpcServiceRegister {
             port = "1088";
 
 
-        String url = String.format("rmi://%s:%d/%s",host,1088,IMqttService.class.getTypeName());
+        String url = String.format("rmi://%s:%s/%s",host,port,IMqttService.class.getTypeName());
         logger.info("register rmi service : {}",url);
 
         try {
             IMqttService mqttService = new MqttServerImpl();
-            LocateRegistry.createRegistry(1088);
+            LocateRegistry.createRegistry(Integer.valueOf(port));
             Naming.rebind(url, mqttService);
-            zkServer.registerApiProvider(IMqttService.class.getTypeName(),"localhost",1088,null);
+            zkServer.registerApiProvider(IMqttService.class.getTypeName(),"localhost",Integer.valueOf(port),null);
         }catch (Exception e){
             logger.error("register rmi server error ",e);
         }

@@ -8,4 +8,8 @@ public interface MqttStatusMBean {
     public int getConnectCnt();
 
     public int getConnectCntByUserId(String userId);
+
+    public long getPubStubCnt();
+
+    public long getQosFlightCnt();
 }

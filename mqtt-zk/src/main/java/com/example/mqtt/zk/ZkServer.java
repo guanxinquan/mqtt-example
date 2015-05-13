@@ -1,5 +1,7 @@
 package com.example.mqtt.zk;
 
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.recipes.cache.ChildData;
@@ -14,9 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.nio.charset.Charset;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -37,6 +38,8 @@ public class ZkServer implements IZkServer{
 
     private static final String SERVER_PATH = "/server";
 
+    private static final String MQTT_PATH = "/mqtt_server";
+
     private static final Logger logger = LoggerFactory.getLogger(ZkServer.class);
 
     private CuratorFramework framework;
@@ -45,9 +48,18 @@ public class ZkServer implements IZkServer{
 
     private PathChildrenCache serverPath;
 
+    private PathChildrenCache mqttServerPath;
+
     private Map<String,PathChildrenCache> apiPaths = new ConcurrentHashMap<String, PathChildrenCache>();
 
     private static final Integer lock = new Integer(1);
+
+    private static final Integer mqttLock = new Integer(1);
+
+    private TreeMap<Long,String> nodes = new TreeMap<Long, String>();
+
+    private HashFunction hash = Hashing.murmur3_128();
+
 
 
     public ZkServer(String hosts) {
@@ -69,10 +81,23 @@ public class ZkServer implements IZkServer{
         serverPath = new PathChildrenCache(framework,SERVER_PATH,true);
         try {
             serverPath.getListenable().addListener(new ServerChangeListener());
-            serverPath.start();
+            serverPath.start(PathChildrenCache.StartMode.BUILD_INITIAL_CACHE);
         } catch (Exception e) {
             logger.error("server path listener error ",e);
+            System.exit(1);
         }
+
+        mqttServerPath = new PathChildrenCache(framework,MQTT_PATH,true);
+        try{
+            mqttServerPath.getListenable().addListener(new MqttServiceChangeListener());
+            mqttServerPath.start(PathChildrenCache.StartMode.BUILD_INITIAL_CACHE);
+            syncHashData();
+        }catch (Exception e){
+            logger.error("mqtt server path listener error ",e);
+            System.exit(1);
+        }
+
+
     }
 
     public List<ChildData> fetchApiProvider(String apiName) throws Exception {
@@ -98,6 +123,34 @@ public class ZkServer implements IZkServer{
         return cache.getCurrentData();
     }
 
+    @Override
+    public void registerServer(String server, byte[] data) throws Exception {
+        String path = MQTT_PATH+"/"+server;
+        Stat stat = framework.checkExists().forPath(path);
+        if (stat == null){
+            createNode(path,CreateMode.EPHEMERAL);
+            if(data != null){
+                framework.setData().forPath(path,data);
+            }
+        }else{
+            throw new Exception("register server already register "+server);
+        }
+    }
+
+    @Override
+    public String fetchServer(String key) {
+
+        synchronized (mqttLock) {
+            SortedMap<Long, String> tail = nodes.tailMap(hash.hashString(key, Charset.forName("utf-8")).padToLong());
+
+            if (tail.isEmpty()) {
+                return nodes.firstEntry().getValue();
+            } else {
+                return nodes.get(tail.firstKey());
+            }
+        }
+    }
+
     public void registerApiProvider(String api,String host,Integer port,byte[] data) throws Exception {
         String className = api;
         String url = String.format("rmi://%s:%d/%s",host,port,className).replace('/','_');
@@ -113,6 +166,8 @@ public class ZkServer implements IZkServer{
             if(data != null){
                 framework.setData().forPath(subPath,data);
             }
+        }else{
+            throw new Exception("register url already register "+url);
         }
 
     }
@@ -124,6 +179,21 @@ public class ZkServer implements IZkServer{
                 withMode(mode).
                 withACL(ZooDefs.Ids.OPEN_ACL_UNSAFE).
                 forPath(path);
+    }
+
+    public void syncHashData(){
+        synchronized (mqttLock) {
+            List<ChildData> data = mqttServerPath.getCurrentData();
+            nodes = new TreeMap<Long, String>();
+            for (int i = 0; i < data.size(); i++) {
+                ChildData d = data.get(i);
+                String url = d.getPath().split("/")[2];
+
+                for (int n = 0; n < 320; n++) {
+                    nodes.put(hash.hashString("node-"+url+"-"+i+"-"+n, Charset.forName("utf-8")).padToLong(), url);
+                }
+            }
+        }
     }
 
     @Override
@@ -155,6 +225,14 @@ public class ZkServer implements IZkServer{
                 }
 
             }
+        }
+    }
+
+    class MqttServiceChangeListener implements PathChildrenCacheListener{
+
+        @Override
+        public void childEvent(CuratorFramework curatorFramework, PathChildrenCacheEvent pathChildrenCacheEvent) throws Exception {
+            syncHashData();
         }
     }
 

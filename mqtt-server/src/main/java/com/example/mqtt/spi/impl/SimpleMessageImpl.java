@@ -9,6 +9,11 @@ import com.example.mqtt.server.ConnectionDescriptor;
 import com.example.mqtt.server.Constants;
 import com.example.mqtt.server.ServerChannel;
 import com.example.mqtt.spi.IMessaging;
+import com.example.mqtt.store.PubStubStore;
+import com.example.mqtt.store.QosFlightStore;
+import com.example.mqtt.store.QosPubStoreEvent;
+import com.example.mqtt.store.impl.GuavaPubStubStore;
+import com.example.mqtt.store.impl.QosFlightStoreImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +51,10 @@ public class SimpleMessageImpl implements IMessaging {
      */
     private Map<String,Set<ConnectionDescriptor>> names = new ConcurrentHashMap<String, Set<ConnectionDescriptor>>();
 
+    private PubStubStore stubStore = new GuavaPubStubStore();
+
+    private QosFlightStore flightStore = new QosFlightStoreImpl();
+
     @Override
     public void handleProtocolMessage(ServerChannel session, AbstractMessage msg) {
         if(msg instanceof ConnectMessage){
@@ -62,12 +71,19 @@ public class SimpleMessageImpl implements IMessaging {
 
         }else if(msg instanceof PubAckMessage){
             PubAckMessage pubAckMessage = (PubAckMessage) msg;
+
+            processPubAck(session,pubAckMessage);
             logger.info("pubAck message,message id is {}", pubAckMessage.getMessageID());
         }else if(msg instanceof DisconnectMessage){
             DisconnectMessage disconnectMessage = (DisconnectMessage) msg;
             logger.info("disconnect message");
             session.close(true);
         }
+    }
+
+    private void processPubAck(ServerChannel session, PubAckMessage pubAckMessage) {
+        String clientID = (String) session.getAttribute(Constants.ATTR_CLIENTID);
+        flightStore.removeFlight(clientID,String.valueOf(pubAckMessage.getMessageID()));
     }
 
     @Override
@@ -169,12 +185,24 @@ public class SimpleMessageImpl implements IMessaging {
     void processPublish(ServerChannel session, PublishMessage msg){
         String clientID = (String) session.getAttribute(Constants.ATTR_CLIENTID);
         String userName = (String) session.getAttribute(Constants.USER_NAME);
+
+        if(msg.isDupFlag()){//消息很可能是重复消息，直接过滤掉
+            String stub = stubStore.fetchStub(clientID,String.valueOf(msg.getMessageID()));
+            if(stub != null){//可以判断是重复消息，直接给出ack
+                PubAckMessage pubAckMessage = new PubAckMessage();
+                pubAckMessage.setMessageID(msg.getMessageID());
+                session.write(pubAckMessage);
+                return;
+            }
+        }
+
         try {
             listener.eventArrival(new PublishEvent(clientID,Long.valueOf(userName),msg.getPayload().array(),msg.getTopicName()));
         } catch (RemoteException e) {//服务端发生异常，断开客户端链接
             session.close(true);
             return;
         }
+        stubStore.storeStub(clientID,String.valueOf(msg.getMessageID()));
         PubAckMessage pubAckMessage = new PubAckMessage();
         pubAckMessage.setMessageID(msg.getMessageID());
         session.write(pubAckMessage);
@@ -221,7 +249,11 @@ public class SimpleMessageImpl implements IMessaging {
         publishMessage.setTopicName(topic);
         publishMessage.setQos(AbstractMessage.QOSType.LEAST_ONE);
 
+        QosPubStoreEvent event = new QosPubStoreEvent(clientId,publishMessage);
+        flightStore.storeFlight(clientId,String.valueOf(messageID),event);
         descriptor.getSession().write(publishMessage);
+
+
     }
 
     @Override
@@ -255,5 +287,15 @@ public class SimpleMessageImpl implements IMessaging {
             return names.get(userId).size();
         }
         return 0;
+    }
+
+    @Override
+    public long getPubStubCnt() {
+        return stubStore.getSize();
+    }
+
+    @Override
+    public long getQosFlightCnt() {
+        return flightStore.getSize();
     }
 }

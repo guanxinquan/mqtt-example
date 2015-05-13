@@ -1,11 +1,13 @@
 package com.example.mqtt.cluster;
 
+import com.example.mqtt.register.MqttRegister;
 import com.example.mqtt.zk.IZkServer;
 import com.example.mqtt.zk.ZkServerFactory;
 import org.apache.curator.framework.recipes.cache.ChildData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.Charset;
 import java.rmi.Naming;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -48,6 +50,42 @@ public class RmiLookupServiceImpl implements LookupService {
 
         return service;
     }
+
+    @Override
+    public <T> T lookup(String host, String port, Class<T> clazz) throws Exception {
+
+        T server = null;
+        String url = String.format("rmi://%s:%s/%s",host,port,clazz.getTypeName());
+
+        server = (T) Naming.lookup(url);
+
+        return server;
+    }
+
+    @Override
+    public <T> T lookup(String key, Class<T> clazz) throws Exception {
+        String service = zkServer.fetchServer(key);
+        if(service != null){
+            String[] split = service.split(":");
+            String host = split[0];
+            String port = split[1];
+            String rmiPort = split[2];
+
+            return lookup(host,rmiPort,clazz);
+        }
+        return null;
+    }
+
+    @Override
+    public String lookUpServer(String key) throws Exception {
+        String srv = zkServer.fetchServer(key);
+        if(srv != null){
+            String[] split = srv.split(":");
+            return split[0]+":"+split[1];
+        }
+        return null;
+    }
+
 
     private String generatorUrl(String fullPath){
         String[] split = fullPath.split("/");

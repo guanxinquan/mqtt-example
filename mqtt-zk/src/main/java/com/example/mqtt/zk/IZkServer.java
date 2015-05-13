@@ -31,4 +31,18 @@ public interface IZkServer extends Closeable{
      * @throws Exception
      */
     public List<ChildData> fetchApiProvider(String apiName) throws Exception;
+
+    /**
+     * 注册服务
+     * @param server
+     * @param data
+     */
+    public void registerServer(String server,byte[] data) throws Exception;
+
+    /**
+     * 按照某个key值获取server
+     * @param key
+     * @return
+     */
+    public String fetchServer(String key);
 }

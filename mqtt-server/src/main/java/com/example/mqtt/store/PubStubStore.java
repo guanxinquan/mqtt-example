@@ -11,4 +11,6 @@ public interface PubStubStore extends Closeable{
 
     public String fetchStub(String clientID,String messageID);
 
+    public long getSize();
+
 }
