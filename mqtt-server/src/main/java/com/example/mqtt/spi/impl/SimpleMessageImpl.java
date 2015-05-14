@@ -1,5 +1,8 @@
 package com.example.mqtt.spi.impl;
 
+import com.example.mqtt.cluster.LookupService;
+import com.example.mqtt.cluster.LookupServiceFactory;
+import com.example.mqtt.config.MqttConfig;
 import com.example.mqtt.event.listener.LoginEvent;
 import com.example.mqtt.event.listener.PublishEvent;
 import com.example.mqtt.proto.messages.*;
@@ -17,6 +20,7 @@ import com.example.mqtt.store.impl.QosFlightStoreImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
@@ -32,6 +36,8 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class SimpleMessageImpl implements IMessaging {
     private static final Logger logger = LoggerFactory.getLogger(SimpleMessageImpl.class);
+
+    //private static String localRegister =
 
 
     private MqttListener listener = new MqttListener();
@@ -50,6 +56,8 @@ public class SimpleMessageImpl implements IMessaging {
      * 用户名（id）与链接的映射
      */
     private Map<String,Set<ConnectionDescriptor>> names = new ConcurrentHashMap<String, Set<ConnectionDescriptor>>();
+
+    private LookupService lookupService = LookupServiceFactory.getInstance();
 
     private PubStubStore stubStore = new GuavaPubStubStore();
 
@@ -78,7 +86,29 @@ public class SimpleMessageImpl implements IMessaging {
             DisconnectMessage disconnectMessage = (DisconnectMessage) msg;
             logger.info("disconnect message");
             session.close(true);
+        }else if(msg instanceof PingReqMessage){
+            processPingReq(session,msg);
         }
+    }
+
+    private void processPingReq(ServerChannel session, AbstractMessage msg) {
+        String userName = (String) session.getAttribute(Constants.USER_NAME);
+        try {
+            String service = lookupService.lookUpServer(userName);
+
+            if(!service.equals(MqttConfig.getMqttUrl())){
+                session.close(true);
+                return;
+            }
+        } catch (Exception e) {
+            logger.error("mqtt ping process error",e);
+            return;
+        }
+
+
+        logger.debug("ping response userName {}",userName);
+        PingRespMessage pingResp = new PingRespMessage();
+        session.write(pingResp);
     }
 
     private void processPubAck(ServerChannel session, PubAckMessage pubAckMessage) {
@@ -297,5 +327,11 @@ public class SimpleMessageImpl implements IMessaging {
     @Override
     public long getQosFlightCnt() {
         return flightStore.getSize();
+    }
+
+    @Override
+    public void close() throws IOException {
+        flightStore.close();
+        stubStore.close();
     }
 }

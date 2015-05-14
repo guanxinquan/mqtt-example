@@ -46,6 +46,7 @@ public class NettyMQTTHandler extends ChannelHandlerAdapter {
                 case PUBREL:
                 case DISCONNECT:
                 case PUBACK:
+                case PINGREQ:
                     if(!channelMapper.containsKey(ctx)){
                         channelMapper.put(ctx,new NettyChannel(ctx));
                     }
@@ -54,12 +55,13 @@ public class NettyMQTTHandler extends ChannelHandlerAdapter {
                     messaging.handleProtocolMessage(channel,msg);
 
                     break;
-                case PINGREQ:
-                    channel = channelMapper.get(ctx);
-                    String clientId = (String) channel.getAttribute(Constants.ATTR_CLIENTID);
-                    PingRespMessage pingResp = new PingRespMessage();
-                    ctx.writeAndFlush(pingResp);
-                    break;
+//                case PINGREQ:
+//                    channel = channelMapper.get(ctx);
+//                    String clientId = (String) channel.getAttribute(Constants.ATTR_CLIENTID);
+//                    messaging.handleProtocolMessage(channel,msg);
+//                    PingRespMessage pingResp = new PingRespMessage();
+//                    ctx.writeAndFlush(pingResp);
+//                    break;
             }
         } catch (Exception ex) {
             LOG.error("Bad error in processing the message", ex);

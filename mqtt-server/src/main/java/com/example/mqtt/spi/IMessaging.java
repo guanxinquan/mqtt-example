@@ -4,6 +4,8 @@ import com.example.mqtt.jmx.MqttStatusMBean;
 import com.example.mqtt.proto.messages.AbstractMessage;
 import com.example.mqtt.server.ServerChannel;
 
+import java.io.Closeable;
+
 /**
  * Created by guanxinquan on 15-5-5.
  *
@@ -11,7 +13,7 @@ import com.example.mqtt.server.ServerChannel;
  *
  *
  */
-public interface IMessaging extends MqttStatusMBean {
+public interface IMessaging extends MqttStatusMBean,Closeable {
 
     /**
      * 处理协议消息

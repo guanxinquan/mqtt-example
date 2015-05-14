@@ -15,6 +15,10 @@ public class MQTTService  {
 
     private ServerAcceptor acceptor;
 
+    public static void main(String[] args) throws IOException {
+        MQTTService service = new MQTTService();
+        service.startServer();
+    }
 
     public void startServer() throws IOException {
         acceptor = new NettyAcceptor();

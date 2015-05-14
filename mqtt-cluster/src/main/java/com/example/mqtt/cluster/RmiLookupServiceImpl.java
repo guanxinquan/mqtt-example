@@ -1,6 +1,5 @@
 package com.example.mqtt.cluster;
 
-import com.example.mqtt.register.MqttRegister;
 import com.example.mqtt.zk.IZkServer;
 import com.example.mqtt.zk.ZkServerFactory;
 import org.apache.curator.framework.recipes.cache.ChildData;

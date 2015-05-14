@@ -1,7 +1,7 @@
 package com.example.mqtt.server.netty;
 
+import com.example.mqtt.config.MqttConfig;
 import com.example.mqtt.jmx.MqttStatus;
-import com.example.mqtt.register.MqttRegister;
 import com.example.mqtt.rpc.RpcServiceRegister;
 import com.example.mqtt.spi.IMessaging;
 import com.example.mqtt.parser.decoder.MQTTDecoder;
@@ -46,7 +46,7 @@ public class NettyAcceptor implements ServerAcceptor {
     public void initialize(IMessaging messaging, Properties props) throws IOException {
         bossGroup = new NioEventLoopGroup();
         workerGroup = new NioEventLoopGroup();
-        initializePlainTCPTransport(messaging,props);
+        initializePlainTCPTransport();
     }
 
     private void initFactory(String host, int port) {
@@ -102,16 +102,10 @@ public class NettyAcceptor implements ServerAcceptor {
         }
     }
 
-    private void initializePlainTCPTransport(IMessaging messaging, Properties props) throws IOException {
-        String host = props.getProperty("host");
-        System.err.println(props.getProperty("port"));
-        //Integer port = Integer.valueOf(props.getProperty("port"));
-        //if(port == null)
-           // port = DEFAULT_PORT;
-        if(host == null){
-            host = "localhost";
-        }
-        initFactory(host, DEFAULT_PORT);
+    private void initializePlainTCPTransport() throws IOException {
+        logger.info("init mqtt server with config host {} port {}", MqttConfig.getHost(),MqttConfig.getMqttPort());
+
+        initFactory(MqttConfig.getHost(), Integer.valueOf(MqttConfig.getMqttPort()));
     }
 
     @Override
@@ -127,8 +121,6 @@ public class NettyAcceptor implements ServerAcceptor {
             bossGroup.shutdownGracefully();
             bossGroup = null;
         }
-
-
     }
 }
 

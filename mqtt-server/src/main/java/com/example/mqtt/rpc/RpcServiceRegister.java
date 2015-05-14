@@ -40,6 +40,7 @@ public class RpcServiceRegister {
         }catch (Exception e){
             logger.error("register rmi server error ",e);
         }
+
     }
 
     public static void register(){
