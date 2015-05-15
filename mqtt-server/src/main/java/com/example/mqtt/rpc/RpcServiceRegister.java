@@ -21,6 +21,7 @@ public class RpcServiceRegister {
     static {
 
         String host = System.getProperty("host");
+        String port = System.getProperty("rmiPort");
 
 
         if(host == null)
