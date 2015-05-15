@@ -8,6 +8,8 @@ import org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.curator.framework.recipes.cache.PathChildrenCache;
 import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
 import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
+import org.apache.curator.framework.state.ConnectionState;
+import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.curator.retry.RetryNTimes;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
@@ -60,6 +62,8 @@ public class ZkServer implements IZkServer{
 
     private HashFunction hash = Hashing.murmur3_128();
 
+    private Map<String,byte[]> ephemeralPath = new HashMap<String, byte[]>();
+
 
 
     public ZkServer(String hosts) {
@@ -75,6 +79,34 @@ public class ZkServer implements IZkServer{
                 retryPolicy(new RetryNTimes(this.DEFAULT_RETRY_TIMES, this.DEFAULT_RETRY_DURATION)).
                 connectionTimeoutMs(DEFAULT_CONNECTION_TIME_OUT).
                 build();
+
+        framework.getConnectionStateListenable().addListener(new ConnectionStateListener() {
+            /**
+             * 这里需要监听reconnect事件，由于在于zk断开连接期间，注册的临时节点将会被zk删除，而重新连接时，必须重建这些数据
+             * @param client
+             * @param newState
+             */
+            @Override
+            public synchronized void stateChanged(CuratorFramework client, ConnectionState newState) {
+                if(newState == ConnectionState.RECONNECTED){
+                    for (Map.Entry<String,byte[]> e:ephemeralPath.entrySet()){
+                        try {
+                            Stat stat = framework.checkExists().forPath(e.getKey());
+                            if(stat == null){
+                                createNode(e.getKey(),CreateMode.EPHEMERAL);
+                            }
+                            if(e.getValue() != null){
+                                framework.setData().forPath(e.getKey(),e.getValue());
+                            }
+
+                        } catch (Exception e1) {
+                            logger.error("check zk node exists error :{}",e.getKey(),e1);
+                        }
+                    }
+                }
+            }
+        });
+
         framework.start();
 
         //监控服务上层目录变化
@@ -129,6 +161,7 @@ public class ZkServer implements IZkServer{
         Stat stat = framework.checkExists().forPath(path);
         if (stat == null){
             createNode(path,CreateMode.EPHEMERAL);
+            ephemeralPath.put(path,data);
             if(data != null){
                 framework.setData().forPath(path,data);
             }
@@ -163,6 +196,7 @@ public class ZkServer implements IZkServer{
         stat = framework.checkExists().forPath(subPath);
         if(stat == null){
             createNode(subPath,CreateMode.EPHEMERAL);
+            ephemeralPath.put(subPath,data);
             if(data != null){
                 framework.setData().forPath(subPath,data);
             }
@@ -212,6 +246,9 @@ public class ZkServer implements IZkServer{
 
     }
 
+    /**
+     * 用于监听rmi下面的接口配置情况
+     */
     class ServerChangeListener implements PathChildrenCacheListener{
 
         @Override
@@ -228,6 +265,9 @@ public class ZkServer implements IZkServer{
         }
     }
 
+    /**
+     * 用于监听mqtt服务注册信息的变化情况
+     */
     class MqttServiceChangeListener implements PathChildrenCacheListener{
 
         @Override
