@@ -20,7 +20,7 @@ public class RpcServiceRegister {
 
     static {
 
-        String host = System.getProperty("rmiHost");
+        String host = System.getProperty("host");
 
 
         if(host == null)
