@@ -35,6 +35,13 @@ public class RpcServiceRegister {
 
         try {
             IMqttService mqttService = new MqttServerImpl();
+
+            if(host.startsWith("10.") || host.startsWith("127.")||host.startsWith("172.")||host.startsWith("192.")){
+
+            }else{
+                System.setProperty("java.rmi.server.hostname",host);
+            }
+
             LocateRegistry.createRegistry(Integer.valueOf(port));
             Naming.rebind(url, mqttService);
             zkServer.registerApiProvider(IMqttService.class.getTypeName(),host,Integer.valueOf(port),null);
