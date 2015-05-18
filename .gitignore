@@ -16,3 +16,4 @@ md5sum
 target/
 tmp/
 com.haizhi.web.apiserver/src/develop/bin/source.sh
+*.cfg

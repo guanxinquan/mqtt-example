@@ -44,6 +44,7 @@ public class RmiLookupServiceImpl implements LookupService {
         }
         logger.debug("use remote url {}",url);
         if(url != null){
+            logger.info("connect rpc url is {}",url);
             service = (T) Naming.lookup(url);
         }
 

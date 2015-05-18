@@ -1,5 +1,6 @@
 package com.example.mqtt.store.impl;
 
+import com.example.mqtt.spi.IMessageFactory;
 import com.example.mqtt.spi.IMqttService;
 import com.example.mqtt.store.QosFlightStore;
 import com.example.mqtt.store.QosPubStoreEvent;

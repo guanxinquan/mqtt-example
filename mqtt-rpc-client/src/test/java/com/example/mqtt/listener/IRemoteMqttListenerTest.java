@@ -21,8 +21,8 @@ public class IRemoteMqttListenerTest {
     private static final Logger logger = LoggerFactory.getLogger(IRemoteMqttListenerTest.class);
 
     public static void main(String[] args) throws InterruptedException, RemoteException {
-        System.setProperty("zk","localhost:2181");
-        System.setProperty("rmiHost", "localhost");
+        System.setProperty("zk","123.126.105.45:2182");
+        System.setProperty("rmiHost", "192.168.2.99");
         System.setProperty("rmiPort","1099");
         IMqttRemoteListener listener = RemoteMqttListenerFactory.getRemoteMqttListener();
         listener.getListeners().add(new IMqttListener() {
@@ -44,6 +44,7 @@ public class IRemoteMqttListenerTest {
                     PublishEvent e = (PublishEvent) event;
                     logger.info("publish event arrival clientId {} userId{} topic {} message {}",e.getClientID(),e.getUserID(),e.getTopic(),new String(e.getPayLoad(), Charset.forName("utf-8")));
                     try {
+
                         service.sendEvent(new com.example.mqtt.event.mqtt.PublishEvent(e.getClientID(),e.getUserID(),e.getPayLoad(),e.getTopic()));
                     } catch (RemoteException e1) {
                         e1.printStackTrace();

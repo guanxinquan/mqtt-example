@@ -22,7 +22,7 @@ public class MqttServer implements IMqttService {
     @Override
     public Object sendEvent(MqttEvent event) throws RemoteException {
 
-        IMqttService service = lookupService(IMqttService.class);
+        IMqttService service = lookupService(String.valueOf(event.getUserID()),IMqttService.class);
         if (service != null){
             service.sendEvent(event);
         }else{
@@ -39,5 +39,15 @@ public class MqttServer implements IMqttService {
             logger.error("look up service error ",e);
         }
         return  service;
+    }
+
+    private <T> T lookupService(String userId,Class<T> clazz){
+        T service = null;
+        try {
+            service = lookupService.lookup(userId, clazz);
+        } catch (Exception e) {
+            logger.error("look up service error ",e);
+        }
+        return service;
     }
 }

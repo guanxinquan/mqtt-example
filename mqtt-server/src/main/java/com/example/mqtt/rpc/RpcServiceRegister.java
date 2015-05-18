@@ -37,7 +37,7 @@ public class RpcServiceRegister {
             IMqttService mqttService = new MqttServerImpl();
             LocateRegistry.createRegistry(Integer.valueOf(port));
             Naming.rebind(url, mqttService);
-            zkServer.registerApiProvider(IMqttService.class.getTypeName(),"localhost",Integer.valueOf(port),null);
+            zkServer.registerApiProvider(IMqttService.class.getTypeName(),host,Integer.valueOf(port),null);
         }catch (Exception e){
             logger.error("register rmi server error ",e);
         }
