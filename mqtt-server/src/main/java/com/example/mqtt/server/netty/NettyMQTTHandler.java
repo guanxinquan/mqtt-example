@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @ChannelHandler.Sharable
 public class NettyMQTTHandler extends ChannelHandlerAdapter {
-    private static final Logger LOG = LoggerFactory.getLogger(NettyMQTTHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(NettyMQTTHandler.class);
     private final Map<ChannelHandlerContext, NettyChannel> channelMapper = new ConcurrentHashMap<ChannelHandlerContext, NettyChannel>();
 
     private IMessaging messaging = IMessageFactory.getInstance();
@@ -34,7 +34,7 @@ public class NettyMQTTHandler extends ChannelHandlerAdapter {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object message) throws Exception {
         AbstractMessage msg = (AbstractMessage) message;
-        LOG.info("Received a message of type {}", DecoderUtils.msgType2String(msg.getMessageType()));
+        logger.info("Received a message of type {}", DecoderUtils.msgType2String(msg.getMessageType()));
         try {
             switch (msg.getMessageType()) {
                 case CONNECT:
@@ -64,7 +64,7 @@ public class NettyMQTTHandler extends ChannelHandlerAdapter {
 //                    break;
             }
         } catch (Exception ex) {
-            LOG.error("Bad error in processing the message", ex);
+            logger.error("Bad error in processing the message", ex);
         }
 
 
@@ -91,6 +91,10 @@ public class NettyMQTTHandler extends ChannelHandlerAdapter {
         }
     }
 
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        logger.error("netty mqtt handler is error ",cause);
+    }
 }
 
 

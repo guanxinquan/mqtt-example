@@ -239,7 +239,7 @@ public class ZkServer implements IZkServer{
                     e.getValue().close();
             }
         }catch (Exception e){
-
+            logger.error("close zk watcher error",e);
         }finally {
             framework.close();
         }
