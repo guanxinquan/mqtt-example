@@ -11,12 +11,15 @@ import com.example.mqtt.rpc.MqttListener;
 import com.example.mqtt.server.ConnectionDescriptor;
 import com.example.mqtt.server.Constants;
 import com.example.mqtt.server.ServerChannel;
+import com.example.mqtt.server.netty.NettyAcceptor;
 import com.example.mqtt.spi.IMessaging;
 import com.example.mqtt.store.PubStubStore;
 import com.example.mqtt.store.QosFlightStore;
 import com.example.mqtt.store.QosPubStoreEvent;
 import com.example.mqtt.store.impl.GuavaPubStubStore;
 import com.example.mqtt.store.impl.QosFlightStoreImpl;
+import com.example.mqtt.zk.IZkServer;
+import com.example.mqtt.zk.ZkServerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,11 +66,15 @@ public class SimpleMessageImpl implements IMessaging {
 
     private QosFlightStore flightStore = new QosFlightStoreImpl();
 
+    IZkServer zkServer = ZkServerFactory.getInstance();
+
     @Override
     public void handleProtocolMessage(ServerChannel session, AbstractMessage msg) {
         if(msg instanceof ConnectMessage){
             ConnectMessage connectMessage = (ConnectMessage) msg;
             logger.info("connect message ,connect user name is {} password is {}",connectMessage.getUsername(),connectMessage.getPassword());
+
+
 
             processConnect(session, (ConnectMessage) msg);
 
@@ -139,6 +146,20 @@ public class SimpleMessageImpl implements IMessaging {
     }
 
     void processConnect(ServerChannel session, ConnectMessage msg){
+
+
+        /**
+         * 先验证用户是否连接到正确的server。
+         */
+        String userName = msg.getUsername();
+        if(!checkHosts(userName)){
+            ConnAckMessage badProto = new ConnAckMessage();
+            badProto.setReturnCode(ConnAckMessage.NOT_AUTHORIZED);
+            logger.error("client access a error mqtt host {}",userName,new Exception());
+            session.write(badProto);
+            session.close(false);
+            return;
+        }
 
         /**
          * 版本号不对，直接拒绝链接
@@ -334,5 +355,18 @@ public class SimpleMessageImpl implements IMessaging {
     public void close() throws IOException {
         flightStore.close();
         stubStore.close();
+    }
+
+    /**
+     * 验证当前登录的用户，是否可以连接到本机上
+     * @param userName
+     * @return
+     */
+    private boolean checkHosts(String userName){
+        String server = zkServer.fetchServer(userName);
+        if(NettyAcceptor.LOCAL_SERVER_IDENTIFY.equals(server)){
+            return true;
+        }
+        return false;
     }
 }

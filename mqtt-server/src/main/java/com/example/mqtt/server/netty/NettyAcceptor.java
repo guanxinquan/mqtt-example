@@ -36,6 +36,8 @@ public class NettyAcceptor implements ServerAcceptor {
 
     private static final int DEFAULT_PORT = 1883;
 
+    public static String LOCAL_SERVER_IDENTIFY;
+
     EventLoopGroup bossGroup;
 
     EventLoopGroup workerGroup;
@@ -85,6 +87,7 @@ public class NettyAcceptor implements ServerAcceptor {
              */
             try {
                 String registerInfo = host+":"+port+":"+RpcServiceRegister.port;
+                LOCAL_SERVER_IDENTIFY = registerInfo;
                 zkServer.registerServer(registerInfo,null);
             } catch (Exception e) {
                 logger.error("register to mqtt service error ",e);

@@ -11,6 +11,6 @@ public class IGetMqttHost {
     public static void main(String[] args){
         System.setProperty("zk","localhost:2181");
         IZkServer zkServer = ZkServerFactory.getInstance();
-        System.out.println(zkServer.fetchServer("8567"));
+        System.out.println(zkServer.fetchServer("9997"));
     }
 }
