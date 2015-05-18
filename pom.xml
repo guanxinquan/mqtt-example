@@ -14,6 +14,7 @@
         <module>mqtt-rpc-client</module>
         <module>mqtt-zk</module>
         <module>mqtt-cluster</module>
+        <module>mqtt-test</module>
     </modules>
 
 
