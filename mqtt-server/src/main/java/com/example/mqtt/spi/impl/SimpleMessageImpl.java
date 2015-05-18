@@ -125,22 +125,24 @@ public class SimpleMessageImpl implements IMessaging {
 
     @Override
     public void lostConnection(String clientID) {
-        ConnectionDescriptor descriptor = clientIDsTemplate.get(clientID);
-        if(descriptor != null){
-            clientIDsTemplate.remove(clientID);
-            descriptor.setClose(true);
-            logger.info("process connect lost for kick out clientId {}",clientID);
-        }else{
-            descriptor = clientIDs.get(clientID);
-            if(descriptor != null){
-                clientIDs.remove(clientID);
-                logger.info("process connect lost clientId {}",clientID);
+        if(clientID != null) {
+            ConnectionDescriptor descriptor = clientIDsTemplate.get(clientID);
+            if (descriptor != null) {
+                clientIDsTemplate.remove(clientID);
                 descriptor.setClose(true);
+                logger.info("process connect lost for kick out clientId {}", clientID);
+            } else {
+                descriptor = clientIDs.get(clientID);
+                if (descriptor != null) {
+                    clientIDs.remove(clientID);
+                    logger.info("process connect lost clientId {}", clientID);
+                    descriptor.setClose(true);
+                }
             }
-        }
-        if(descriptor != null){
-            String userName = (String) descriptor.getSession().getAttribute(Constants.USER_NAME);
-            processClientLost(userName);
+            if (descriptor != null) {
+                String userName = (String) descriptor.getSession().getAttribute(Constants.USER_NAME);
+                processClientLost(userName);
+            }
         }
 
     }
