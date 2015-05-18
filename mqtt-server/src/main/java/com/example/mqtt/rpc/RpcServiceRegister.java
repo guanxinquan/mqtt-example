@@ -39,6 +39,7 @@ public class RpcServiceRegister {
             if(host.startsWith("10.") || host.startsWith("127.")||host.startsWith("172.")||host.startsWith("192.")){
 
             }else{
+                logger.info("register rmi server host name is {}",host);
                 System.setProperty("java.rmi.server.hostname",host);
             }
 
