@@ -9,8 +9,8 @@ import com.example.mqtt.zk.ZkServerFactory;
 public class IGetMqttHost {
 
     public static void main(String[] args){
-        System.setProperty("zk","123.126.105.45:2182");
+        System.setProperty("zk","localhost:2181");
         IZkServer zkServer = ZkServerFactory.getInstance();
-        System.out.println(zkServer.fetchServer("201212"));
+        System.out.println(zkServer.fetchServer("8567"));
     }
 }

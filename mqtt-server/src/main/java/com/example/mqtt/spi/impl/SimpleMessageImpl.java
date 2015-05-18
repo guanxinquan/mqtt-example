@@ -273,6 +273,7 @@ public class SimpleMessageImpl implements IMessaging {
         PublishMessage publishMessage = new PublishMessage();
         publishMessage.setPayload(ByteBuffer.wrap(content));
 
+        logger.info("clientId is {},content is {} ,topic is {}, descriptor {}",clientId,new String(content),topic,descriptor);
         AtomicLong number = (AtomicLong) descriptor.getSession().getAttribute(Constants.MESSAGE_ID);
         int messageID = (int)number.incrementAndGet()%4096;
         publishMessage.setMessageID(messageID);

@@ -21,7 +21,7 @@ public class IRemoteMqttListenerTest {
     private static final Logger logger = LoggerFactory.getLogger(IRemoteMqttListenerTest.class);
 
     public static void main(String[] args) throws InterruptedException, RemoteException {
-        System.setProperty("zk","123.126.105.45:2182");
+        System.setProperty("zk","localhost:2181");
         System.setProperty("rmiHost", "192.168.2.99");
         System.setProperty("rmiPort","1099");
         IMqttRemoteListener listener = RemoteMqttListenerFactory.getRemoteMqttListener();
