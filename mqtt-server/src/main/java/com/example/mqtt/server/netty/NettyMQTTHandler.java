@@ -1,5 +1,6 @@
 package com.example.mqtt.server.netty;
 
+import com.example.mqtt.logger.StatLogger;
 import com.example.mqtt.parser.decoder.DecoderUtils;
 import static com.example.mqtt.proto.messages.AbstractMessage.*;
 
@@ -82,9 +83,15 @@ public class NettyMQTTHandler extends ChannelHandlerAdapter {
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+
         if (evt instanceof IdleStateEvent){
             IdleStateEvent e = (IdleStateEvent) evt;
             if(e.state() == IdleState.READER_IDLE){
+                logger.info("client idle,will close client");
+                NettyChannel channel = channelMapper.get(ctx);
+                String userName = (String) channel.getAttribute(Constants.USER_NAME);
+                String clientId = (String) channel.getAttribute(Constants.ATTR_CLIENTID);
+                StatLogger.logger(StatLogger.TIME_OUT,userName,clientId,null);
                 ctx.close();
             }
 

@@ -26,9 +26,4 @@ public interface IMqttService {
      */
     public boolean kickOut(String clientID);
 
-    /**
-     * 下发消息
-     * @param message 消息信息
-     */
-    public void publish(PublishMessage message);
 }

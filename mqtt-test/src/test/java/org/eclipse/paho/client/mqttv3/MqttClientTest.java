@@ -74,7 +74,7 @@ public class MqttClientTest {
                 }
 
             });
-            client.setTimeToWait(Integer.MAX_VALUE);
+            client.setTimeToWait(1000l);
         } catch (MqttException e) {
             e.printStackTrace();
         }
@@ -102,12 +102,12 @@ public class MqttClientTest {
         }
 
         long s = System.currentTimeMillis();
-        for(int i = 0 ; i < 10 ; i++){
+        for(int i = 0 ; i < 10000 ; i++){
             client.publish("999",payload,1,false);
+            Thread.sleep(100l);
         }
         Thread.sleep(10000l);
         logger.info("user time :{}",System.currentTimeMillis() - s);
         client.disconnect();
-
     }
 }

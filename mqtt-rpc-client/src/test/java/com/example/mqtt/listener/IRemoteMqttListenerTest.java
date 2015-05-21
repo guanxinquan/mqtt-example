@@ -38,14 +38,14 @@ public class IRemoteMqttListenerTest {
                     if(e.getClientID().equals(String.valueOf(e.getPassword()))){
                         return new Boolean(true);
                     }else{
-                        return new Boolean(false);
+                        return new Boolean(true);
                     }
                 }else if(event instanceof PublishEvent){
                     PublishEvent e = (PublishEvent) event;
                     logger.info("publish event arrival clientId {} userId{} topic {} message {}",e.getClientID(),e.getUserID(),e.getTopic(),new String(e.getPayLoad(), Charset.forName("utf-8")));
                     try {
-
-                        service.sendEvent(new com.example.mqtt.event.mqtt.PublishEvent(e.getClientID(),e.getUserID(),e.getPayLoad(),e.getTopic()));
+                        service.sendEvent(new com.example.mqtt.event.mqtt.PublishEvent(null,e.getUserID(),e.getPayLoad(),e.getTopic()));
+                        //service.sendEvent(new com.example.mqtt.event.mqtt.PublishEvent(e.getClientID(),e.getUserID(),e.getPayLoad(),e.getTopic()));
                     } catch (RemoteException e1) {
                         e1.printStackTrace();
                     }

@@ -13,7 +13,7 @@ import java.io.Closeable;
  *
  *
  */
-public interface IMessaging extends MqttStatusMBean,Closeable {
+public interface IMessaging extends MqttStatusMBean,Closeable,IMqttService {
 
     /**
      * 处理协议消息

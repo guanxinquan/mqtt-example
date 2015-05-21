@@ -28,7 +28,7 @@ public class QosFlightStoreImpl implements QosFlightStore {
 
     private boolean running = true;
 
-    private IMqttService service;
+    private static IMqttService service ;
 
     private Worker worker;
 
@@ -100,6 +100,9 @@ public class QosFlightStoreImpl implements QosFlightStore {
         @Override
         public void run() {
             while(running){
+                if(service == null){
+                    service = IMessageFactory.getInstance();
+                }
                 try {
                     QosPubStoreEvent evt = eventQueue.peek();
                     if (evt != null) {

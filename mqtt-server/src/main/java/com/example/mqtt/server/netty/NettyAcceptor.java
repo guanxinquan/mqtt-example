@@ -34,6 +34,8 @@ public class NettyAcceptor implements ServerAcceptor {
 
     private static final int DEFAULT_CONNECT_TIMEOUT = 10;
 
+    private static final int DEFAULT_IDLE_TIMEOUT = 5*60;
+
     private static final int DEFAULT_PORT = 1883;
 
     public static String LOCAL_SERVER_IDENTIFY;
@@ -60,7 +62,7 @@ public class NettyAcceptor implements ServerAcceptor {
                     @Override
                     public void initChannel(SocketChannel ch) throws Exception {
                         ChannelPipeline pipeline = ch.pipeline();
-                        pipeline.addFirst("idleStateHandler", new IdleStateHandler(0, 0, DEFAULT_CONNECT_TIMEOUT));
+                        pipeline.addFirst("idleStateHandler", new IdleStateHandler(DEFAULT_IDLE_TIMEOUT, 0, 0));
                         pipeline.addLast("decoder", new MQTTDecoder());
                         pipeline.addLast("encoder", new MQTTEncoder());
                         pipeline.addLast("handler", handler);

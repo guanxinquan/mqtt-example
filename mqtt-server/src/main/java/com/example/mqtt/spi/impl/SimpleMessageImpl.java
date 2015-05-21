@@ -5,6 +5,7 @@ import com.example.mqtt.cluster.LookupServiceFactory;
 import com.example.mqtt.config.MqttConfig;
 import com.example.mqtt.event.listener.LoginEvent;
 import com.example.mqtt.event.listener.PublishEvent;
+import com.example.mqtt.logger.StatLogger;
 import com.example.mqtt.proto.messages.*;
 import com.example.mqtt.parser.decoder.DecoderUtils;
 import com.example.mqtt.rpc.MqttListener;
@@ -73,8 +74,6 @@ public class SimpleMessageImpl implements IMessaging {
         if(msg instanceof ConnectMessage){
             ConnectMessage connectMessage = (ConnectMessage) msg;
             logger.info("connect message ,connect user name is {} password is {}",connectMessage.getUsername(),connectMessage.getPassword());
-
-
 
             processConnect(session, (ConnectMessage) msg);
 
@@ -187,12 +186,32 @@ public class SimpleMessageImpl implements IMessaging {
         }
 
         /**
+         * 验证不成功 拒绝访问
+         */
+        try {
+            if (!checkAccount(msg.getUsername(), msg.getPassword(), msg.getClientID())) {
+                ConnAckMessage okResp = new ConnAckMessage();
+                okResp.setReturnCode(ConnAckMessage.BAD_USERNAME_OR_PASSWORD);
+                session.write(okResp);
+                session.close(false);
+                return;
+            }
+        }catch (Exception e){
+            ConnAckMessage okResp = new ConnAckMessage();
+            okResp.setReturnCode(ConnAckMessage.SERVER_UNAVAILABLE);
+            session.write(okResp);
+            session.close(false);
+        }
+
+        /**
          * 重复登录，删除先前登录的链接
          */
         if(clientIDs.containsKey(msg.getClientID())){
-            clientIDsTemplate.put(msg.getClientID(),clientIDs.get(msg.getClientID()));
-            clientIDs.get(msg.getClientID()).getSession().close(false);
-            clientIDs.get(msg.getClientID()).setClose(true);
+
+            ConnectionDescriptor older = clientIDs.get(msg.getClientID());
+            clientIDsTemplate.put(msg.getClientID(),older);
+            older.getSession().close(false);
+            older.setClose(true);
             logger.info("Found an existing connection with same client ID <{}>, forced to close", msg.getClientID());
         }
 
@@ -202,27 +221,12 @@ public class SimpleMessageImpl implements IMessaging {
         session.setAttribute(Constants.MESSAGE_ID,new AtomicLong());
         session.setAttribute(Constants.USER_NAME,msg.getUsername());
 
-        /**
-         * 验证不成功 拒绝访问
-         */
-        try {
-            if (!checkAccount(msg.getUsername(), msg.getPassword(), msg.getClientID())) {
-                ConnAckMessage okResp = new ConnAckMessage();
-                okResp.setReturnCode(ConnAckMessage.BAD_USERNAME_OR_PASSWORD);
-                session.write(okResp);
-                session.close(false);
-            }
-        }catch (Exception e){
-            ConnAckMessage okResp = new ConnAckMessage();
-            okResp.setReturnCode(ConnAckMessage.SERVER_UNAVAILABLE);
-            session.write(okResp);
-            session.close(false);
-        }
+
 
         ConnAckMessage okResp = new ConnAckMessage();
         session.write(okResp);
 
-
+        StatLogger.logger(StatLogger.CONNECT,msg.getUsername(),msg.getClientID(),null);
         /**
          * 维护names的映射关系
          */
@@ -238,6 +242,8 @@ public class SimpleMessageImpl implements IMessaging {
     void processPublish(ServerChannel session, PublishMessage msg){
         String clientID = (String) session.getAttribute(Constants.ATTR_CLIENTID);
         String userName = (String) session.getAttribute(Constants.USER_NAME);
+
+        StatLogger.logger(StatLogger.PUB_UP,userName,clientID,String.valueOf(msg.isDupFlag()));
 
         if(msg.isDupFlag()){//消息很可能是重复消息，直接过滤掉
             String stub = stubStore.fetchStub(clientID,String.valueOf(msg.getMessageID()));
@@ -298,6 +304,7 @@ public class SimpleMessageImpl implements IMessaging {
 
         logger.info("clientId is {},content is {} ,topic is {}, descriptor {}",clientId,new String(content),topic,descriptor);
         AtomicLong number = (AtomicLong) descriptor.getSession().getAttribute(Constants.MESSAGE_ID);
+        String userName = (String) descriptor.getSession().getAttribute(Constants.USER_NAME);
         int messageID = (int)number.incrementAndGet()%4096;
         publishMessage.setMessageID(messageID);
         publishMessage.setTopicName(topic);
@@ -307,6 +314,7 @@ public class SimpleMessageImpl implements IMessaging {
         flightStore.storeFlight(clientId,String.valueOf(messageID),event);
         descriptor.getSession().write(publishMessage);
 
+        StatLogger.logger(StatLogger.PUB_DOWN,userName,clientId,null);
 
     }
 
@@ -370,5 +378,37 @@ public class SimpleMessageImpl implements IMessaging {
             return true;
         }
         return false;
+    }
+
+    @Override
+    public boolean republish(QosPubStoreEvent event) {
+        ConnectionDescriptor descriptor = clientIDs.get(event.getClientID());
+        if(descriptor == null || descriptor.isClose()){//如果客户端已经断开连接，直接返回false
+            logger.debug("repub message clientId {} error , connection already closed",event.getClientID());
+            return false;
+        }
+        /**
+         * 重新发送消息
+         */
+        logger.info("repub message clientId {} ",event.getClientID());
+        event.getMessage().setDupFlag(true);
+        event.getMessage().reset();
+        descriptor.getSession().write(event.getMessage());
+        String userName = (String) descriptor.getSession().getAttribute(Constants.USER_NAME);
+        StatLogger.logger(StatLogger.PUB_RETRY,userName,event.getClientID(),String.valueOf(event.getCnt()));
+        return true;
+    }
+
+    @Override
+    public boolean kickOut(String clientID) {
+        ConnectionDescriptor descriptor = clientIDs.get(clientID);
+        if(descriptor != null && !descriptor.isClose()) {
+            descriptor.getSession().close(true);
+            descriptor.setClose(true);
+
+            return true;
+        }else{
+            return false;
+        }
     }
 }
