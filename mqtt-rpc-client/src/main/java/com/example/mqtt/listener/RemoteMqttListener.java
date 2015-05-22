@@ -18,10 +18,10 @@ public class RemoteMqttListener extends UnicastRemoteObject implements IMqttRemo
 
     private static final Logger logger = LoggerFactory.getLogger(RemoteMqttListener.class);
 
-    private List<IMqttListener> listeners = new ArrayList<IMqttListener>();
+    private IMqttListener listener = null;
 
-    public RemoteMqttListener() throws RemoteException {
-
+    public RemoteMqttListener(IMqttListener listener) throws RemoteException {
+        this.listener = listener;
     }
 
     @Override
@@ -30,21 +30,14 @@ public class RemoteMqttListener extends UnicastRemoteObject implements IMqttRemo
         logger.debug("listener event {} {}", event.getClientID(), event.getUserID());
 
         Object object = null;
-        for (IMqttListener listener : listeners){//一直遍历，知道有某一个返回值为飞空的listener。
-            object = listener.eventArrival(event);
-            if(object != null){
-                break;
+        if(listener != null){
+            try {
+                object = listener.eventArrival(event);
+            }catch (Exception e){
+                logger.error("error event ",e);
             }
         }
-
-
         return object;
     }
 
-
-
-    @Override
-    public List<IMqttListener> getListeners() {
-        return listeners;
-    }
 }

@@ -24,8 +24,8 @@ public class IRemoteMqttListenerTest {
         System.setProperty("zk","localhost:2181");
         System.setProperty("rmiHost", "192.168.2.99");
         System.setProperty("rmiPort","1099");
-        IMqttRemoteListener listener = RemoteMqttListenerFactory.getRemoteMqttListener();
-        listener.getListeners().add(new IMqttListener() {
+
+        RemoteMqttListenerFactory.start(new IMqttListener() {
             IMqttService service = new MqttServer();
 
             @Override
@@ -54,9 +54,6 @@ public class IRemoteMqttListenerTest {
                 return null;
             }
         });
-        while(true){
-            listener.getListeners();
-            Thread.sleep(10000l);
-        }
+
     }
 }

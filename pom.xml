@@ -15,6 +15,7 @@
         <module>mqtt-zk</module>
         <module>mqtt-cluster</module>
         <module>mqtt-test</module>
+        <module>mqtt-mq</module>
     </modules>
 
 

@@ -44,10 +44,6 @@ class MqttListener extends UnicastRemoteObject implements IMqttRemoteListener {
         return new Boolean(true);
     }
 
-    @Override
-    public List<IMqttListener> getListeners() throws RemoteException {
-        return null;
-    }
 }
 
 class MqttService extends UnicastRemoteObject implements IMqttService{

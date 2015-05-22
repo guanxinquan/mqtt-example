@@ -16,5 +16,4 @@ public interface IMqttRemoteListener extends Remote{
 
     public Object eventArrival(ListenerEvent event) throws RemoteException;
 
-    public List<IMqttListener> getListeners()throws RemoteException;
 }

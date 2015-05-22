@@ -106,7 +106,7 @@ public class MqttClientTest {
             client.publish("999",payload,1,false);
             Thread.sleep(100l);
         }
-        Thread.sleep(10000l);
+        Thread.sleep(1000000l);
         logger.info("user time :{}",System.currentTimeMillis() - s);
         client.disconnect();
     }

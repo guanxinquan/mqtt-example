@@ -6,6 +6,7 @@ import com.example.mqtt.config.MqttConfig;
 import com.example.mqtt.event.listener.LoginEvent;
 import com.example.mqtt.event.listener.PublishEvent;
 import com.example.mqtt.logger.StatLogger;
+import com.example.mqtt.mq.MqMessageOperator;
 import com.example.mqtt.proto.messages.*;
 import com.example.mqtt.parser.decoder.DecoderUtils;
 import com.example.mqtt.rpc.MqttListener;
@@ -21,6 +22,7 @@ import com.example.mqtt.store.impl.GuavaPubStubStore;
 import com.example.mqtt.store.impl.QosFlightStoreImpl;
 import com.example.mqtt.zk.IZkServer;
 import com.example.mqtt.zk.ZkServerFactory;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,8 +42,6 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class SimpleMessageImpl implements IMessaging {
     private static final Logger logger = LoggerFactory.getLogger(SimpleMessageImpl.class);
-
-    //private static String localRegister =
 
 
     private MqttListener listener = new MqttListener();
@@ -67,7 +67,16 @@ public class SimpleMessageImpl implements IMessaging {
 
     private QosFlightStore flightStore = new QosFlightStoreImpl();
 
-    IZkServer zkServer = ZkServerFactory.getInstance();
+    private IZkServer zkServer = ZkServerFactory.getInstance();
+
+    private MqMessageOperator mqMessageOperator = new MqMessageOperator();
+
+    private static final String EXCHANGE_NAME = "mqtt-pub";
+
+    private static final String ROUT_KEY = "mqtt-queue";
+
+    private static final ObjectMapper mapper = new ObjectMapper();
+
 
     @Override
     public void handleProtocolMessage(ServerChannel session, AbstractMessage msg) {
@@ -255,9 +264,12 @@ public class SimpleMessageImpl implements IMessaging {
             }
         }
 
-        try {
-            listener.eventArrival(new PublishEvent(clientID,Long.valueOf(userName),msg.getPayload().array(),msg.getTopicName()));
-        } catch (RemoteException e) {//服务端发生异常，断开客户端链接
+        try {//使用rabbitmq发送消息
+            PublishEvent event = new PublishEvent(clientID,Long.valueOf(userName),msg.getPayload().array(),msg.getTopicName());
+            mqMessageOperator.publish(EXCHANGE_NAME,ROUT_KEY,null,mapper.writeValueAsBytes(event));
+            //listener.eventArrival(new PublishEvent(clientID,Long.valueOf(userName),msg.getPayload().array(),msg.getTopicName()));
+        } catch (Exception e) {//服务端发生异常，断开客户端链接
+            logger.error("send message to rabbit mq error",e);
             session.close(true);
             return;
         }
