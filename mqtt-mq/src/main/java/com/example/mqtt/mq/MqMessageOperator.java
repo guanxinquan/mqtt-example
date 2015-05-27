@@ -34,7 +34,7 @@ public class MqMessageOperator {
         pool = new GenericObjectPool<Channel>(new MqPoolFactory(),config);
     }
 
-    public void addListeners(String queueName,final List<IMqListener> listeners) throws Exception {
+    public void addListeners(final String queueName,final List<IMqListener> listeners) throws Exception {
         final Channel channel = pool.borrowObject();
         channel.basicConsume(queueName,false,new DefaultConsumer(channel){
             @Override

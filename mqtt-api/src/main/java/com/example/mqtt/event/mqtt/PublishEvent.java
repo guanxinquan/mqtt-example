@@ -10,20 +10,32 @@ public class PublishEvent extends MqttEvent {
 
     private String topic;
 
+    private String syncTag;
+
     public PublishEvent() {
     }
 
-    public PublishEvent(String clientId,Long userId,byte[] payLoad, String topic) {
+    public PublishEvent(String clientId,Long userId,byte[] payLoad, String topic,String syncTag) {
         setClientID(clientId);
         setUserID(userId);
         this.payLoad = payLoad;
         this.topic = topic;
+        this.syncTag = syncTag;
     }
 
     public PublishEvent(Long userId,byte[] payLoad, String topic) {
         setUserID(userId);
         this.payLoad = payLoad;
         this.topic = topic;
+    }
+
+
+    public String getSyncTag() {
+        return syncTag;
+    }
+
+    public void setSyncTag(String syncTag) {
+        this.syncTag = syncTag;
     }
 
     public byte[] getPayLoad() {

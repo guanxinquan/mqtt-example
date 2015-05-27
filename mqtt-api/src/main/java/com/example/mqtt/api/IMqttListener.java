@@ -11,7 +11,7 @@ import java.rmi.RemoteException;
  */
 public interface IMqttListener {
     /**
-     * 有mqtt消息到来时，触发请求
+     * 有mqtt消息到来时，触发请求,客户端必须处理异常
      * @param event
      * @return
      */

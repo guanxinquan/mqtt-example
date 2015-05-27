@@ -3,6 +3,7 @@ package com.example.mqtt.listener;
 import com.example.mqtt.api.IMqttListener;
 import com.example.mqtt.api.IMqttRemoteListener;
 import com.example.mqtt.event.listener.PublishEvent;
+import com.example.mqtt.event.listener.SyncUpEvent;
 import com.example.mqtt.mq.IMqListener;
 import com.example.mqtt.mq.MqMessageOperator;
 import com.example.mqtt.zk.IZkServer;
@@ -28,6 +29,8 @@ public class RemoteMqttListenerFactory {
 
     private static final String QUEUE_NAME = "mqtt-queue";
 
+    private static final String SYNC_QUEUE_NAME = "mqtt-sync-queue";
+
     private static final Logger logger = LoggerFactory.getLogger(RemoteMqttListenerFactory.class);
 
     private static final ObjectMapper mapper = new ObjectMapper();
@@ -47,7 +50,7 @@ public class RemoteMqttListenerFactory {
 
         try {
             MqMessageOperator operator = new MqMessageOperator();
-            IMqListener mqListener = new IMqListener() {
+            IMqListener mqPublishEventListener = new IMqListener() {
                 @Override
                 public void listener(byte[] data) {
                     try {
@@ -58,7 +61,21 @@ public class RemoteMqttListenerFactory {
                     }
                 }
             };
-            operator.addListeners(QUEUE_NAME,Collections.singletonList(mqListener));
+
+            IMqListener mqSyncUpEventListener = new IMqListener() {
+                @Override
+                public void listener(byte[] data) {
+                    try {
+                        SyncUpEvent event = mapper.readValue(data,SyncUpEvent.class);
+                        mqttListener.eventArrival(event);
+                    } catch (IOException e) {
+                        logger.error("json parser error",e);
+                    }
+                }
+            };
+
+            operator.addListeners(QUEUE_NAME,Collections.singletonList(mqPublishEventListener));
+            operator.addListeners(SYNC_QUEUE_NAME,Collections.singletonList(mqSyncUpEventListener));
         } catch (Exception e) {
             logger.error("add rabbit mq listener error",e);
         }

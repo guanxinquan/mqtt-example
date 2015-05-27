@@ -3,6 +3,7 @@ package com.example.mqtt.rpc;
 import com.example.mqtt.api.IMqttService;
 import com.example.mqtt.event.mqtt.MqttEvent;
 import com.example.mqtt.event.mqtt.PublishEvent;
+import com.example.mqtt.event.mqtt.SyncDownEvent;
 import com.example.mqtt.server.netty.NettyAcceptor;
 import com.example.mqtt.spi.IMessageFactory;
 import com.example.mqtt.spi.IMessaging;
@@ -48,10 +49,13 @@ public class MqttServerImpl extends UnicastRemoteObject implements IMqttService 
 
             logger.info("mqtt service receive rpc publish event {} {}",event.getUserID(),event.getClientID());
             if(e.getClientID() == null ||"".equals(e.getClientID())){//send message by userId
-                messaging.sendMessageByUser(String.valueOf(e.getUserID()),e.getPayLoad(),e.getTopic());
+                //messaging.sendMessageByUser(String.valueOf(e.getUserID()),e.getPayLoad(),e.getTopic(),e.getSyncTag());
             }else{//send message by clientId
-                messaging.sendMessage(e.getClientID(),e.getPayLoad(),e.getTopic());
+                messaging.sendMessage(e.getClientID(),e.getPayLoad(),e.getTopic(),e.getSyncTag());
             }
+        }else if(event instanceof SyncDownEvent){
+            SyncDownEvent e = (SyncDownEvent) event;
+            messaging.syncDown(e.getUserID());
         }
         return true;
     }

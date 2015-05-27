@@ -9,4 +9,6 @@ public class Constants {
     public static final String KEEP_ALIVE = "keepAlive";
     public static final String USER_NAME = "userName";
     public static final String MESSAGE_ID = "messageId";
+    public static final String SYNC_TAG = "syncTag";
+    public static final String PUB_FLIGHT = "pub_flight";
 }

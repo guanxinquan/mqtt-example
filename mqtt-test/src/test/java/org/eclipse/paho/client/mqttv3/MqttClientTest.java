@@ -22,6 +22,10 @@ public class MqttClientTest {
 
     private static final Logger logger = LoggerFactory.getLogger(MqttClientTest.class);
 
+    private static String topic ="1";
+
+    private static boolean isOk = false;
+
     private String getBrokerUrl(String userName){
         String server = zkServer.fetchServer(userName);
         String[] splits =  server.split(":");
@@ -53,6 +57,7 @@ public class MqttClientTest {
 
         conOpt.setUserName(clientId);
         conOpt.setPassword(clientId.toCharArray());
+        conOpt.setWill("0","".getBytes(),0,false);
 
         try {
             String url = getBrokerUrl(userId);
@@ -67,6 +72,7 @@ public class MqttClientTest {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
                     logger.info("message arrival topic {} payload {}",topic,new String(message.getPayload()));
+                    client.aClient.publish(topic,topic.getBytes(),0,false);
                 }
 
                 @Override
@@ -92,7 +98,7 @@ public class MqttClientTest {
         MessageContent content = new MessageContent(1,"记得下班后去吃饭");
         OneMessage oneMessage = new OneMessage(1,from,to,content);
 
-        byte[] payload = mapper.writeValueAsString(oneMessage).getBytes(Charset.forName("utf-8"));
+        //byte[] payload =  //= mapper.writeValueAsString(oneMessage).getBytes(Charset.forName("utf-8"));
 
         MqttClientTest test = new MqttClientTest(userId,userId,userId);
         boolean conn = test.conn();
@@ -102,9 +108,18 @@ public class MqttClientTest {
         }
 
         long s = System.currentTimeMillis();
-        for(int i = 0 ; i < 10000 ; i++){
-            client.publish("999",payload,1,false);
-            Thread.sleep(100l);
+        for(int i = 0 ; i < 1000 ; i++){
+            byte[] payload = String.valueOf("k"+i).getBytes();
+            client.publish("pub",payload,0,false);
+//            while(true) {
+//                if(isOk) {
+//                    client.publish(topic, topic.getBytes(), 0, false);
+//                    isOk = false;
+//                    break;
+//                }
+                Thread.sleep(10l);
+//            }
+            //client.publish("8","8".getBytes(),0,false);
         }
         Thread.sleep(1000000l);
         logger.info("user time :{}",System.currentTimeMillis() - s);

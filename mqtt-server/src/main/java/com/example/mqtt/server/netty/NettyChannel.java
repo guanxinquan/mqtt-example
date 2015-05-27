@@ -24,6 +24,8 @@ public class NettyChannel implements ServerChannel{
     private static final AttributeKey<Object> ATTR_KEY_CLIENTID = AttributeKey.newInstance(Constants.ATTR_CLIENTID);
     private static final AttributeKey<Object> ATTR_KEY_MESSAGEID = AttributeKey.newInstance(Constants.MESSAGE_ID);
     private static final AttributeKey<Object> ATTR_KEY_USERNAME = AttributeKey.newInstance(Constants.USER_NAME);
+    private static final AttributeKey<Object> ATTR_KEY_SYNCTAG = AttributeKey.newInstance(Constants.SYNC_TAG);
+    private static final AttributeKey<Object> ATTR_PUB_FLIGHT = AttributeKey.newInstance(Constants.PUB_FLIGHT);
 
     NettyChannel(ChannelHandlerContext ctx) {
         m_channel = ctx;
@@ -32,6 +34,8 @@ public class NettyChannel implements ServerChannel{
         m_attributesKeys.put(Constants.ATTR_CLIENTID, ATTR_KEY_CLIENTID);
         m_attributesKeys.put(Constants.MESSAGE_ID, ATTR_KEY_MESSAGEID);
         m_attributesKeys.put(Constants.USER_NAME, ATTR_KEY_USERNAME);
+        m_attributesKeys.put(Constants.SYNC_TAG,ATTR_KEY_SYNCTAG);
+        m_attributesKeys.put(Constants.PUB_FLIGHT,ATTR_PUB_FLIGHT);
     }
 
     public Object getAttribute(Object key) {

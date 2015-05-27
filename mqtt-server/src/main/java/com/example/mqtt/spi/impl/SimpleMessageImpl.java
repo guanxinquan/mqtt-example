@@ -5,6 +5,7 @@ import com.example.mqtt.cluster.LookupServiceFactory;
 import com.example.mqtt.config.MqttConfig;
 import com.example.mqtt.event.listener.LoginEvent;
 import com.example.mqtt.event.listener.PublishEvent;
+import com.example.mqtt.event.listener.SyncUpEvent;
 import com.example.mqtt.logger.StatLogger;
 import com.example.mqtt.mq.MqMessageOperator;
 import com.example.mqtt.proto.messages.*;
@@ -28,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,6 +76,8 @@ public class SimpleMessageImpl implements IMessaging {
     private static final String EXCHANGE_NAME = "mqtt-pub";
 
     private static final String ROUT_KEY = "mqtt-queue";
+
+    private static final String SYNC_ROUT_KEY = "mqtt-sync-queue";
 
     private static final ObjectMapper mapper = new ObjectMapper();
 
@@ -126,10 +130,7 @@ public class SimpleMessageImpl implements IMessaging {
         session.write(pingResp);
     }
 
-    private void processPubAck(ServerChannel session, PubAckMessage pubAckMessage) {
-        String clientID = (String) session.getAttribute(Constants.ATTR_CLIENTID);
-        flightStore.removeFlight(clientID,String.valueOf(pubAckMessage.getMessageID()));
-    }
+
 
     @Override
     public void lostConnection(String clientID) {
@@ -154,6 +155,8 @@ public class SimpleMessageImpl implements IMessaging {
         }
 
     }
+
+
 
     void processConnect(ServerChannel session, ConnectMessage msg){
 
@@ -229,8 +232,9 @@ public class SimpleMessageImpl implements IMessaging {
         session.setAttribute(Constants.ATTR_CLIENTID,msg.getClientID());
         session.setAttribute(Constants.MESSAGE_ID,new AtomicLong());
         session.setAttribute(Constants.USER_NAME,msg.getUsername());
+        session.setAttribute(Constants.SYNC_TAG,msg.getWillTopic());//will topic is sync tag
 
-
+        logger.info("will topic is : {}",msg.getWillTopic());
 
         ConnAckMessage okResp = new ConnAckMessage();
         session.write(okResp);
@@ -245,6 +249,14 @@ public class SimpleMessageImpl implements IMessaging {
             names.put(msg.getUsername(),cds);
         }
         cds.add(connDes);
+        SyncUpEvent event = new SyncUpEvent(msg.getClientID(),Long.valueOf(userName),msg.getWillTopic());
+        session.setAttribute(Constants.SYNC_TAG,msg.getWillTopic());
+        try {
+            mqMessageOperator.publish(EXCHANGE_NAME,SYNC_ROUT_KEY,null,mapper.writeValueAsBytes(event));
+        } catch (Exception e) {//这里要是写不进mq，同步可能存在问题，但是，仅在mq不可用的情况
+            logger.error("publish sync message to rabbit mq error",e);
+            session.close(true);//直接关闭连接（让客户端重新连接，可以端需要有一定的连接回退策略）
+        }
         logger.info("Create persistent session for clientID {}", msg.getClientID());
     }
 
@@ -254,29 +266,50 @@ public class SimpleMessageImpl implements IMessaging {
 
         StatLogger.logger(StatLogger.PUB_UP,userName,clientID,String.valueOf(msg.isDupFlag()));
 
-        if(msg.isDupFlag()){//消息很可能是重复消息，直接过滤掉
-            String stub = stubStore.fetchStub(clientID,String.valueOf(msg.getMessageID()));
-            if(stub != null){//可以判断是重复消息，直接给出ack
-                PubAckMessage pubAckMessage = new PubAckMessage();
-                pubAckMessage.setMessageID(msg.getMessageID());
-                session.write(pubAckMessage);
+        if("pub".equals(msg.getTopicName().toLowerCase())) {//正常的上行消息
+
+
+            if (msg.isDupFlag()) {//消息很可能是重复消息，直接过滤掉
+                String stub = stubStore.fetchStub(clientID, String.valueOf(msg.getMessageID()));
+                if (stub != null) {//可以判断是重复消息，直接给出ack
+                    PubAckMessage pubAckMessage = new PubAckMessage();
+                    pubAckMessage.setMessageID(msg.getMessageID());
+                    session.write(pubAckMessage);
+                    return;
+                }
+            }
+
+            try {//使用rabbitmq发送消息
+                PublishEvent event = new PublishEvent(clientID, Long.valueOf(userName), msg.getPayload().array(), msg.getTopicName());
+                mqMessageOperator.publish(EXCHANGE_NAME, ROUT_KEY, null, mapper.writeValueAsBytes(event));
+                //listener.eventArrival(new PublishEvent(clientID,Long.valueOf(userName),msg.getPayload().array(),msg.getTopicName()));
+            } catch (Exception e) {//服务端发生异常，断开客户端链接
+                logger.error("send message to rabbit mq error", e);
+                session.close(true);
                 return;
             }
-        }
+            stubStore.storeStub(clientID, String.valueOf(msg.getMessageID()));
+            PubAckMessage pubAckMessage = new PubAckMessage();
+            pubAckMessage.setMessageID(msg.getMessageID());
+            session.write(pubAckMessage);
+        }else{//客户端反馈的ack消息
+            flightStore.removeFlight(clientID,msg.getTopicName());//先删除掉消息，防止消息重发
+            String syncTag = new String(msg.getPayload().array(), Charset.forName("utf-8"));//从ack的消息体内，获取客户端最新的tag
+            session.setAttribute(Constants.SYNC_TAG,syncTag);//更新本地缓存的tag
+            SyncUpEvent syncUpEvent = new SyncUpEvent(clientID,Long.valueOf(userName),syncTag);//定制syncUp消息，通知dispatch，查看是否还有新的消息需要下发
+            try {
+                mqMessageOperator.publish(EXCHANGE_NAME,SYNC_ROUT_KEY,null,mapper.writeValueAsBytes(syncUpEvent));
+            } catch (Exception e) {
+                logger.error("send sync up message error",e);
+                session.close(true);//通知异常时，需要注意，直接关闭连接（否者可能有消息延迟收取，让客户端重新连接）
+            }
 
-        try {//使用rabbitmq发送消息
-            PublishEvent event = new PublishEvent(clientID,Long.valueOf(userName),msg.getPayload().array(),msg.getTopicName());
-            mqMessageOperator.publish(EXCHANGE_NAME,ROUT_KEY,null,mapper.writeValueAsBytes(event));
-            //listener.eventArrival(new PublishEvent(clientID,Long.valueOf(userName),msg.getPayload().array(),msg.getTopicName()));
-        } catch (Exception e) {//服务端发生异常，断开客户端链接
-            logger.error("send message to rabbit mq error",e);
-            session.close(true);
-            return;
         }
-        stubStore.storeStub(clientID,String.valueOf(msg.getMessageID()));
-        PubAckMessage pubAckMessage = new PubAckMessage();
-        pubAckMessage.setMessageID(msg.getMessageID());
-        session.write(pubAckMessage);
+    }
+
+    private void processPubAck(ServerChannel session, PubAckMessage pubAckMessage) {
+        String clientID = (String) session.getAttribute(Constants.ATTR_CLIENTID);
+        flightStore.removeFlight(clientID,String.valueOf(pubAckMessage.getMessageID()));
     }
 
     /**
@@ -309,8 +342,27 @@ public class SimpleMessageImpl implements IMessaging {
         return (Boolean) listener.eventArrival(new LoginEvent(Long.valueOf(userName),clientId,password));
     }
 
-    public void sendMessage(String clientId,byte[] content,String topic){
+    public void sendMessage(String clientId,byte[] content,String topic,String syncTag){
         ConnectionDescriptor descriptor = clientIDs.get(clientId);
+        ServerChannel session = descriptor.getSession();
+        String oldTag = (String) session.getAttribute(Constants.SYNC_TAG);
+//        QosPubStoreEvent olderEvent  = (QosPubStoreEvent) descriptor.getSession().getAttribute(Constants.PUB_FLIGHT);
+//
+//        if(olderEvent.isValidate()){
+//            return;
+//        }
+        if(!checkSend(descriptor.getSession()))//当前正有消息在发送，忽略这个消息
+            return;
+
+        //验证syncTag,只有syncTag与mqtt-server维护的syncTay相等时，才发送消息，否者，过滤掉消息
+        if(!syncTag.equals(oldTag)){
+            return;
+        }
+
+        if(descriptor == null) {
+            return;
+        }
+
         PublishMessage publishMessage = new PublishMessage();
         publishMessage.setPayload(ByteBuffer.wrap(content));
 
@@ -320,15 +372,20 @@ public class SimpleMessageImpl implements IMessaging {
         int messageID = (int)number.incrementAndGet()%4096;
         publishMessage.setMessageID(messageID);
         publishMessage.setTopicName(topic);
-        publishMessage.setQos(AbstractMessage.QOSType.LEAST_ONE);
+        publishMessage.setQos(AbstractMessage.QOSType.MOST_ONE);
 
         QosPubStoreEvent event = new QosPubStoreEvent(clientId,publishMessage);
-        flightStore.storeFlight(clientId,String.valueOf(messageID),event);
-        descriptor.getSession().write(publishMessage);
+        //flightStore.storeFlight(clientId,String.valueOf(messageID),event);
+        flightStore.storeFlight(clientId,topic,event);
+
+        session.setAttribute(Constants.PUB_FLIGHT,event);//记录当前的flight消息
+
+        session.write(publishMessage);
 
         StatLogger.logger(StatLogger.PUB_DOWN,userName,clientId,null);
 
     }
+
 
     @Override
     public void sendMessageByUser(String userId, byte[] content, String topic) {
@@ -340,14 +397,36 @@ public class SimpleMessageImpl implements IMessaging {
                 if(d.isClose())
                     isCheckout = true;
                 else
-                    sendMessage(d.getClientID(),content,topic);
+                    sendMessage(d.getClientID(),content,topic,null);
             }
             if(isCheckout){
                 processClientLost(userId);
             }
         }
+    }
 
+    @Override
+    public void syncDown(Long userId) {
+        Set<ConnectionDescriptor> descriptors = names.get(""+userId);
+        boolean isCheckout = false;
+        if(descriptors != null){
+            for(ConnectionDescriptor d : descriptors){
 
+                if(d.isClose()){
+                    isCheckout = true;
+                }else{
+
+                    ServerChannel session = d.getSession();
+                    if(!checkSend(session))//有消息发送，直接忽略这个消息
+                        continue;
+                    String syncTag = (String) session.getAttribute(Constants.SYNC_TAG);
+                    sendSyncTag(session,new SyncUpEvent(d.getClientID(),userId,syncTag));
+                }
+            }
+            if(isCheckout){
+                processClientLost(String.valueOf(userId));
+            }
+        }
     }
 
     @Override
@@ -409,6 +488,36 @@ public class SimpleMessageImpl implements IMessaging {
         String userName = (String) descriptor.getSession().getAttribute(Constants.USER_NAME);
         StatLogger.logger(StatLogger.PUB_RETRY,userName,event.getClientID(),String.valueOf(event.getCnt()));
         return true;
+    }
+
+    private boolean sendSyncTag(ServerChannel session,SyncUpEvent event){
+        try {
+            mqMessageOperator.publish(EXCHANGE_NAME,SYNC_ROUT_KEY,null,mapper.writeValueAsBytes(event));
+        } catch (Exception e) {//这里要是写不进mq，同步可能存在问题，但是，仅在mq不可用的情况
+            logger.error("publish sync message to rabbit mq error",e);
+            session.close(true);//直接关闭连接（让客户端重新连接，可以端需要有一定的连接回退策略）
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * 检查当前是否有消息正在发送
+     * @param session
+     * @return 没有消息发送，返回true，否者返回false
+     */
+    private boolean checkSend(ServerChannel session){
+        QosPubStoreEvent olderEvent  = (QosPubStoreEvent) session.getAttribute(Constants.PUB_FLIGHT);
+        if(olderEvent == null) {
+            System.err.println("no message");
+            return true;
+        }
+        if(olderEvent.isValidate()) {//表面有消息还在发送中
+            System.err.println("still have message");
+            return false;
+        }
+        return true;
+
     }
 
     @Override

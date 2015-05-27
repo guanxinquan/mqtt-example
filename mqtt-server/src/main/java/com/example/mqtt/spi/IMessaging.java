@@ -29,7 +29,7 @@ public interface IMessaging extends MqttStatusMBean,Closeable,IMqttService {
      * @param content 内容
      * @param topic 主题
      */
-    public void sendMessage(String clientId,byte[] content,String topic);
+    public void sendMessage(String clientId,byte[] content,String topic,String syncTag);
 
     /**
      * 通过用户名字或者id下发消息
@@ -46,5 +46,11 @@ public interface IMessaging extends MqttStatusMBean,Closeable,IMqttService {
      * @param clientID 客户id
      */
     void lostConnection(String clientID);
+
+    /**
+     * dispatcher 服务希望mqtt提供某个用户的最新的版本号
+     * @param userId
+     */
+    void syncDown(Long userId);
 
 }
