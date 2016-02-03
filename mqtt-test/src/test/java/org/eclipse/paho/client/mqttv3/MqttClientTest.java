@@ -4,17 +4,21 @@ import com.example.mqtt.zk.IZkServer;
 import com.example.mqtt.zk.ZkServerFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sun.xml.internal.messaging.saaj.util.ByteInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by guanxinquan on 15-5-18.
  */
 public class MqttClientTest {
 
-    private IZkServer zkServer = ZkServerFactory.getInstance();
 
     private MqttClient client;
 
@@ -27,9 +31,7 @@ public class MqttClientTest {
     private static boolean isOk = false;
 
     private String getBrokerUrl(String userName){
-        String server = zkServer.fetchServer(userName);
-        String[] splits =  server.split(":");
-        return String.format("tcp://%s:%s",splits[0],splits[1]);
+        return String.format("tcp://%s:%s","127.0.0.1",6379);
     }
 
     public boolean conn(){
@@ -57,8 +59,7 @@ public class MqttClientTest {
 
         conOpt.setUserName(clientId);
         conOpt.setPassword(clientId.toCharArray());
-        conOpt.setWill("0","".getBytes(),0,false);
-
+        conOpt.setWill("pub,1","".getBytes(),0,false);
         try {
             String url = getBrokerUrl(userId);
             logger.info("mqtt url is {} clientId is {}",url,clientId);
@@ -71,9 +72,33 @@ public class MqttClientTest {
 
                 @Override
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
-                    logger.info("message arrival topic {} payload {}",topic,new String(message.getPayload()));
-                    client.aClient.publish(topic,topic.getBytes(),0,false);
+                    System.out.println("message arrival");
+                    byte[] bytes = message.getPayload();
+                    ByteInputStream inputStream = new ByteInputStream(bytes,bytes.length);
+
+                    List<String> payloadMsg = parserPayload(inputStream,bytes.length);
+
+                    ObjectMapper mapper = new ObjectMapper();
+                    logger.info("message arrival topic {} payload {}", topic, mapper.writeValueAsString(payloadMsg));
                 }
+
+                private List<String> parserPayload(ByteInputStream inputStream,int size) throws IOException {
+                    int currentSize = 0;
+                    byte[] bufSize = new byte[4];
+                    List<String> ret = new ArrayList<String>();
+                    while(currentSize < size){
+                        inputStream.read(bufSize);
+                        ByteBuffer wrap = ByteBuffer.wrap(bufSize);
+                        int bs = wrap.getInt();
+                        byte[] msg = new byte[bs];
+                        inputStream.read(msg);
+                        ret.add(new String(msg,Charset.forName("utf-8")));
+                        currentSize += 4;
+                        currentSize += bs;
+                    }
+                    return ret;
+                }
+
 
                 @Override
                 public void deliveryComplete(IMqttDeliveryToken token) {
@@ -87,7 +112,6 @@ public class MqttClientTest {
     }
 
     public static void main(String[] args) throws JsonProcessingException, MqttException, InterruptedException {
-        System.setProperty("zk","localhost:2181");
 
         String userId = "9998";
 
@@ -108,9 +132,9 @@ public class MqttClientTest {
         }
 
         long s = System.currentTimeMillis();
-        for(int i = 0 ; i < 1000 ; i++){
+        for(int i = 0 ; i < 1 ; i++){
             byte[] payload = String.valueOf("k"+i).getBytes();
-            client.publish("pub",payload,0,false);
+            client.publish("pub",payload,1,false);
 //            while(true) {
 //                if(isOk) {
 //                    client.publish(topic, topic.getBytes(), 0, false);
