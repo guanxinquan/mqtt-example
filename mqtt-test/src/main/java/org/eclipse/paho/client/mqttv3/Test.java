@@ -14,18 +14,17 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
 /**
- * Created by guanxinquan on 15-6-11.
+ * Created by guanxinquan on 16/2/4.
  */
-public class ABTest{
+public class Test {
 
     private String userId;
-
 
     public static Long sleepTime = 1000l;
 
     public static Integer messageCnt = 100;
 
-    public ABTest(String userId) {
+    public Test(String userId) {
         this.userId = userId;
     }
 
@@ -44,7 +43,7 @@ public class ABTest{
         conOpt.setPassword(userId.toCharArray());
         conOpt.setWill("pub,1","".getBytes(),0,false);
 
-        final Logger logger = LoggerFactory.getLogger(ABTest.class+userId);
+        final Logger logger = LoggerFactory.getLogger(Test.class + userId);
         final MqttClient client;
         try {
             String url = getBrokerUrl(userId);
@@ -95,9 +94,6 @@ public class ABTest{
 
             });
 
-
-
-
             client.setTimeToWait(1000l);
             client.connect(conOpt);
             return client;
@@ -119,23 +115,23 @@ public class ABTest{
 
         for(int i=clientBegin ; i < clientBegin+size ; i++){
             Thread.sleep(dur);
-            executor.execute(new RunTest(i+""));
+            executor.execute(new GoTest(i+""));
         }
     }
 
 }
 
-class RunTest implements Runnable{
+class GoTest implements Runnable{
 
     private String clientId;
 
-    public RunTest(String clientId) {
+    public GoTest(String clientId) {
         this.clientId = clientId;
     }
 
     @Override
     public void run() {
-        ABTest abTest = new ABTest(clientId);
+        Test abTest = new Test(clientId);
         MqttClient client = abTest.getClient();
         for(int i = 0 ; i < 100; i++){
             byte[] payload = String.valueOf(clientId+"-"+i).getBytes();
