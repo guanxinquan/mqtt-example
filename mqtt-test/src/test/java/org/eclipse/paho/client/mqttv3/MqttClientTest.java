@@ -80,6 +80,7 @@ public class MqttClientTest {
 
                     ObjectMapper mapper = new ObjectMapper();
                     logger.info("message arrival topic {} payload {}", topic, mapper.writeValueAsString(payloadMsg));
+                    client.aClient.publish(topic,new byte[]{},0,false);
                 }
 
                 private List<String> parserPayload(ByteInputStream inputStream,int size) throws IOException {
@@ -132,7 +133,7 @@ public class MqttClientTest {
         }
 
         long s = System.currentTimeMillis();
-        for(int i = 0 ; i < 1 ; i++){
+        for(int i = 0 ; i < 3000 ; i++){
             byte[] payload = String.valueOf("k"+i).getBytes();
             client.publish("pub",payload,1,false);
 //            while(true) {
